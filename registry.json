@@ -1,0 +1,13 @@
+{
+  "plugins": [
+    {
+      "id": "in-home-display",
+      "name": "In-Home Display",
+      "version": "1.0.0",
+      "description": "Real-time in-home display for TerraLync showing solar, battery, and grid power",
+      "author": "TerraLync Team",
+      "download_url": "",
+      "checksum_sha256": ""
+    }
+  ]
+}
