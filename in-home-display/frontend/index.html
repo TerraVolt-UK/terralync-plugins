@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TerraLync IHD</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Outfit for an ultra-modern, rounded, and highly legible tech feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --bg-void: #030305;
+            --c-solar: #F59E0B;
+            --c-house: #0EA5E9;
+            --c-batt:  #A855F7;
+            --c-grid:  #10B981;
+            --c-grid-in: #EF4444;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-void);
+            color: #ffffff;
+            margin: 0;
+            overscroll-behavior-y: none;
+            /* Global noise overlay for tactile feel */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+        }
+
+        /* --- THE MAGIC SPOTLIGHT BORDER SYSTEM --- */
+        /* The wrapper holds the glowing border effect */
+        .bento-wrapper {
+            position: relative;
+            background: rgba(255, 255, 255, 0.03); /* Default faint border */
+            border-radius: 1.5rem;
+            padding: 1px; /* The thickness of the glowing border */
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+        }
+
+        @media (hover: hover) {
+            .bento-wrapper:hover {
+                transform: translateY(-4px);
+                z-index: 20;
+            }
+            
+            /* The spotlight effect tracking the mouse */
+            .bento-wrapper::before {
+                content: "";
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                border-radius: inherit;
+                background: radial-gradient(
+                    600px circle at var(--mouse-x, 0px) var(--mouse-y, 0px), 
+                    rgba(255,255,255,0.3), 
+                    transparent 40%
+                );
+                opacity: 0;
+                transition: opacity 0.5s;
+                z-index: -1;
+            }
+            
+            .bento-grid:hover .bento-wrapper::before {
+                opacity: 1; /* Fade in spotlights when hovering the grid */
+            }
+        }
+
+        /* The inner card holds the actual content and background */
+        .bento-inner {
+            background: linear-gradient(160deg, rgba(15, 15, 20, 0.9) 0%, rgba(5, 5, 8, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: calc(1.5rem - 1px); /* Match outer radius minus padding */
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.05); /* Top inner highlight */
+        }
+
+        /* --- SPECIFIC CARD BACKGROUND GLOWS --- */
+        .bg-glow-solar { background: radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 60%); }
+        .bg-glow-house { background: radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.1), transparent 60%); }
+        
+        /* --- TYPOGRAPHY UPGRADES --- */
+        .text-gradient-solar {
+            background: linear-gradient(to bottom, #FCD34D, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 20px rgba(245,158,11,0.2));
+        }
+        .text-gradient-house {
+            background: linear-gradient(to bottom, #7DD3FC, #0EA5E9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 20px rgba(14,165,233,0.2));
+        }
+
+        .metric-value {
+            font-size: clamp(3.5rem, 8cqw, 7rem);
+            font-weight: 200;
+            line-height: 0.9;
+            letter-spacing: -0.04em;
+            font-variant-numeric: tabular-nums;
+        }
+        .metric-unit {
+            font-size: clamp(1.2rem, 3cqw, 2rem);
+            font-weight: 300;
+            color: rgba(255,255,255,0.3);
+            margin-left: 0.25rem;
+        }
+
+        /* --- BACKGROUND SPARKLINE GRAPHS --- */
+        .sparkline-svg {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 60%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.4;
+            /* Fade graph out at the top */
+            mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+        }
+        
+        /* --- ANIMATED ICONS --- */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .pulse-indicator {
+            position: relative;
+        }
+        .pulse-indicator::after {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            border: 2px solid currentColor;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+    </style>
+</head>
+<body class="min-h-[100dvh] flex items-center justify-center p-4 md:p-8">
+
+    <div id="bento-grid" class="bento-grid w-full max-w-[1400px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
+
+        <!-- 1. SOLAR ARRAY -->
+        <div class="bento-wrapper lg:col-span-7 container-type-inline-size" style="container-type: inline-size;">
+            <div class="bento-inner bg-glow-solar p-6 md:p-8">
+                
+                <!-- Live SVG Sparkline Graph -->
+                <svg class="sparkline-svg" preserveAspectRatio="none" viewBox="0 0 100 100">
+                    <defs>
+                        <linearGradient id="grad-solar" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="var(--c-solar)" stop-opacity="0.3"/>
+                            <stop offset="100%" stop-color="var(--c-solar)" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <path id="path-solar-fill" fill="url(#grad-solar)" d="M0,100 L0,100 L100,100 Z" />
+                    <path id="path-solar-line" fill="none" stroke="var(--c-solar)" stroke-width="0.5" stroke-opacity="0.5" d="" />
+                </svg>
+
+                <div class="flex justify-between items-start z-10 mb-auto">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                            <i class="ph-fill ph-sun text-amber-500 text-2xl pulse-indicator"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-[0.85rem] font-semibold tracking-[0.2em] text-gray-400 uppercase">Solar Array</h2>
+                            <p class="text-xs text-amber-500/80 font-medium tracking-widest mt-1">ACTIVE YIELD</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-16 flex items-baseline z-10">
+                    <span id="val-solar" class="metric-value text-gradient-solar">0</span>
+                    <span class="metric-unit">W</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. HOUSE LOAD -->
+        <div class="bento-wrapper lg:col-span-5 container-type-inline-size" style="container-type: inline-size;">
+            <div class="bento-inner bg-glow-house p-6 md:p-8">
+                
+                <svg class="sparkline-svg" preserveAspectRatio="none" viewBox="0 0 100 100">
+                    <defs>
+                        <linearGradient id="grad-house" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="var(--c-house)" stop-opacity="0.3"/>
+                            <stop offset="100%" stop-color="var(--c-house)" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <path id="path-house-fill" fill="url(#grad-house)" d="M0,100 L0,100 L100,100 Z" />
+                    <path id="path-house-line" fill="none" stroke="var(--c-house)" stroke-width="0.5" stroke-opacity="0.5" d="" />
+                </svg>
+
+                <div class="flex justify-between items-start z-10 mb-auto">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.15)]">
+                            <i class="ph-fill ph-house text-sky-500 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-[0.85rem] font-semibold tracking-[0.2em] text-gray-400 uppercase">House Load</h2>
+                            <p class="text-xs text-sky-500/80 font-medium tracking-widest mt-1">CONSUMING</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-16 flex items-baseline z-10">
+                    <span id="val-house" class="metric-value text-gradient-house">0</span>
+                    <span class="metric-unit">W</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. BATTERY CELL -->
+        <div class="bento-wrapper lg:col-span-5 container-type-inline-size" style="container-type: inline-size;">
+            <div class="bento-inner p-6 md:p-8 flex flex-row items-center justify-between" id="batt-bg-layer">
+                
+                <div class="flex flex-col h-full justify-between z-10">
+                    <div class="flex items-center gap-4">
+                        <div id="icon-batt-bg" class="p-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 transition-colors duration-500">
+                            <i id="icon-batt" class="ph-fill ph-battery-charging text-violet-500 text-2xl transition-colors"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-[0.85rem] font-semibold tracking-[0.2em] text-gray-400 uppercase">Storage Cell</h2>
+                            <p id="label-batt" class="text-xs text-violet-500/80 font-medium tracking-widest mt-1">IDLE</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 flex flex-col">
+                        <div class="flex items-baseline">
+                            <span id="val-batt-w" class="text-4xl md:text-5xl font-light tabular-nums tracking-tight text-white drop-shadow-md transition-colors">0</span>
+                            <span class="text-lg md:text-xl text-gray-400 ml-2">W</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Conic Gradient Gauge -->
+                <div class="relative w-28 h-28 md:w-36 md:h-36 shrink-0 flex items-center justify-center rounded-full bg-white/5 border border-white/5 shadow-inner p-3">
+                    <!-- The colorful ring -->
+                    <div id="batt-ring" class="absolute inset-0 rounded-full transition-all duration-1000" style="background: conic-gradient(var(--c-batt) 0%, var(--c-batt) 68%, transparent 68%); mask-image: radial-gradient(transparent 58%, black 60%); -webkit-mask-image: radial-gradient(transparent 58%, black 60%);"></div>
+                    
+                    <!-- Inner text area -->
+                    <div class="relative z-10 flex flex-col items-center justify-center w-full h-full rounded-full bg-[#0a0a0d] shadow-[0_0_20px_rgba(0,0,0,0.8)] border border-white/5">
+                        <span id="val-batt-pct" class="text-2xl md:text-3xl font-medium tracking-tight text-white">0.0</span>
+                        <span class="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Charge</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 4. GRID NETWORK -->
+        <div class="bento-wrapper lg:col-span-7 container-type-inline-size" style="container-type: inline-size;">
+            <div class="bento-inner p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between" id="grid-bg-layer">
+                
+                <div class="flex flex-col h-full justify-between z-10 w-full md:w-auto">
+                    <div class="flex items-center gap-4">
+                        <div id="icon-grid-bg" class="p-3 rounded-2xl bg-zinc-500/10 border border-zinc-500/20 transition-colors duration-500">
+                            <i id="icon-grid" class="ph-fill ph-plug text-zinc-500 text-2xl transition-colors duration-500"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-[0.85rem] font-semibold tracking-[0.2em] text-gray-400 uppercase">External Grid</h2>
+                            <p id="label-grid" class="text-xs text-zinc-500/80 font-medium tracking-widest mt-1 transition-colors">STANDBY</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 flex items-baseline">
+                        <span id="val-grid" class="metric-value text-white transition-colors duration-500">0</span>
+                        <span class="metric-unit">W</span>
+                    </div>
+                </div>
+
+                <!-- Modern Directional Visualizer -->
+                <div class="w-full md:w-48 h-12 mt-6 md:mt-0 relative flex items-center justify-center shrink-0 rounded-full border border-white/10 bg-black/50 overflow-hidden shadow-inner">
+                    <!-- Base Track -->
+                    <div class="w-full h-[2px] bg-white/5 absolute"></div>
+                    
+                    <!-- Animated Glow Particle -->
+                    <div id="grid-particle" class="w-24 h-full absolute top-0 opacity-0 mix-blend-screen transition-opacity duration-300" style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);"></div>
+                    
+                    <!-- Text Overlay -->
+                    <span id="grid-flow-text" class="relative z-10 text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">IDLE</span>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. Spotlight Mouse Tracking ---
+        const bentoGrid = document.getElementById('bento-grid');
+        bentoGrid.addEventListener('mousemove', (e) => {
+            // Find all wrappers and update their CSS variables based on mouse position
+            for (const card of document.querySelectorAll('.bento-wrapper')) {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            }
+        });
+
+        // --- 2. Data History ---
+        const historyLen = 20;
+        const dataHist = {
+            solar: Array(historyLen).fill(0),
+            house: Array(historyLen).fill(0)
+        };
+
+        const state = { solar: 0, house: 0, battW: 0, battPct: 0, grid: 0, gridMode: 'idle' };
+        const display = { solar: 0, house: 0, battW: 0, battPct: 0, grid: 0 };
+
+        function updateHistory(arr, val, maxVal) {
+            arr.shift();
+            // Normalize to 0-100% for SVG rendering
+            arr.push(Math.min(100, Math.max(0, (val / maxVal) * 100)));
+        }
+
+        // --- 3. API Integration ---
+        async function fetchInverterData() {
+            try {
+                const response = await fetch('/api/inverter/data');
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const data = result.data;
+                    
+                    // Map API fields to our state
+                    state.solar = data.solar_power || 0;
+                    state.house = data.house_load || data.load_power || 0;
+                    state.battW = data.battery_power || 0;
+                    state.battPct = data.battery_soc || 0;
+                    state.grid = data.grid_power || 0;
+                    
+                    // Determine grid mode based on grid power
+                    if (state.grid > 20) {
+                        state.gridMode = 'export';
+                    } else if (state.grid < -20) {
+                        state.gridMode = 'import';
+                    } else {
+                        state.gridMode = 'idle';
+                    }
+                    
+                    // Update graphs
+                    updateHistory(dataHist.solar, state.solar, 8000);
+                    updateHistory(dataHist.house, state.house, 6000);
+                    
+                    updateInterface();
+                }
+            } catch (error) {
+                console.error('Failed to fetch inverter data:', error);
+            }
+        }
+
+        // --- 4. UI Rendering ---
+        let particleAnim;
+
+        function updateInterface() {
+            // Smooth numbers
+            gsap.to(display, {
+                duration: 2,
+                solar: state.solar, house: state.house, battW: Math.abs(state.battW), battPct: state.battPct, grid: Math.abs(state.grid),
+                ease: "power2.out",
+                onUpdate: renderDOM
+            });
+
+            // Update Sparklines
+            drawSparkline('solar', dataHist.solar);
+            drawSparkline('house', dataHist.house);
+            
+            updateVisualStates();
+        }
+
+        function renderDOM() {
+            document.getElementById('val-solar').innerText = Math.round(display.solar).toLocaleString();
+            document.getElementById('val-house').innerText = Math.round(display.house).toLocaleString();
+            document.getElementById('val-grid').innerText = Math.round(display.grid).toLocaleString();
+            document.getElementById('val-batt-w').innerText = Math.round(display.battW).toLocaleString();
+            document.getElementById('val-batt-pct').innerText = display.battPct.toFixed(1);
+
+            // Update Conic Gradient Battery Ring
+            let color = 'var(--c-batt)';
+            if(state.battW > 0) color = 'var(--c-solar)';
+            document.getElementById('batt-ring').style.background = `conic-gradient(${color} 0%, ${color} ${display.battPct}%, transparent ${display.battPct}%)`;
+        }
+
+        function updateVisualStates() {
+            // === BATTERY ===
+            const bLabel = document.getElementById('label-batt');
+            const bIcon = document.getElementById('icon-batt');
+            const bIconBg = document.getElementById('icon-batt-bg');
+            const bLayer = document.getElementById('batt-bg-layer');
+            const bVal = document.getElementById('val-batt-w');
+
+            if (state.battW > 0) {
+                bLabel.innerText = "CHARGING"; bLabel.className = "text-xs text-amber-500/80 font-medium tracking-widest mt-1";
+                bIcon.className = "ph-fill ph-battery-charging text-amber-500 text-2xl pulse-indicator";
+                bIconBg.className = "p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]";
+                bLayer.style.background = "radial-gradient(circle at top right, rgba(245, 158, 11, 0.05), transparent 60%)";
+                bVal.style.color = "var(--c-solar)";
+            } else if (state.battW < 0) {
+                bLabel.innerText = "DISCHARGING"; bLabel.className = "text-xs text-violet-500/80 font-medium tracking-widest mt-1";
+                bIcon.className = "ph-fill ph-battery-warning text-violet-500 text-2xl";
+                bIconBg.className = "p-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 shadow-[0_0_15px rgba(139,92,246,0.1)]";
+                bLayer.style.background = "radial-gradient(circle at top right, rgba(139, 92, 246, 0.05), transparent 60%)";
+                bVal.style.color = "var(--c-batt)";
+            } else {
+                bLabel.innerText = "IDLE"; bLabel.className = "text-xs text-gray-500/80 font-medium tracking-widest mt-1";
+                bIcon.className = "ph-fill ph-battery-high text-gray-500 text-2xl";
+                bIconBg.className = "p-3 rounded-2xl bg-zinc-500/10 border border-zinc-500/20";
+                bLayer.style.background = "none";
+                bVal.style.color = "#ffffff";
+            }
+
+            // === GRID ===
+            const gVal = document.getElementById('val-grid');
+            const gLabel = document.getElementById('label-grid');
+            const gIcon = document.getElementById('icon-grid');
+            const gIconBg = document.getElementById('icon-grid-bg');
+            const gLayer = document.getElementById('grid-bg-layer');
+            const particle = document.getElementById('grid-particle');
+            const flowText = document.getElementById('grid-flow-text');
+
+            if(particleAnim) particleAnim.kill();
+
+            if (state.gridMode === 'export') {
+                gVal.style.color = "var(--c-grid)";
+                gVal.style.textShadow = "0 0 30px rgba(16,185,129,0.3)";
+                gLabel.innerText = "EXPORTING"; gLabel.style.color = "var(--c-grid)";
+                gIcon.className = "ph-fill ph-upload text-[var(--c-grid)] text-2xl pulse-indicator";
+                gIconBg.className = "p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px rgba(16,185,129,0.15)]";
+                gLayer.style.background = "radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.05), transparent 60%)";
+                
+                flowText.innerText = "EXPORT"; flowText.className = "relative z-10 text-xs font-bold tracking-[0.2em] text-emerald-500 uppercase";
+                particle.style.opacity = 1;
+                particle.style.background = "linear-gradient(90deg, transparent, var(--c-grid), transparent)";
+                particleAnim = gsap.fromTo(particle, { left: "-50%" }, { left: "150%", duration: 1, repeat: -1, ease: "none" });
+
+            } else if (state.gridMode === 'import') {
+                gVal.style.color = "var(--c-grid-in)";
+                gVal.style.textShadow = "0 0 30px rgba(239,68,68,0.3)";
+                gLabel.innerText = "IMPORTING"; gLabel.style.color = "var(--c-grid-in)";
+                gIcon.className = "ph-fill ph-download text-[var(--c-grid-in)] text-2xl pulse-indicator";
+                gIconBg.className = "p-3 rounded-2xl bg-red-500/10 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)]";
+                gLayer.style.background = "radial-gradient(circle at bottom right, rgba(239, 68, 68, 0.05), transparent 60%)";
+
+                flowText.innerText = "IMPORT"; flowText.className = "relative z-10 text-xs font-bold tracking-[0.2em] text-red-500 uppercase";
+                particle.style.opacity = 1;
+                particle.style.background = "linear-gradient(90deg, transparent, var(--c-grid-in), transparent)";
+                particleAnim = gsap.fromTo(particle, { left: "150%" }, { left: "-50%", duration: 1, repeat: -1, ease: "none" });
+
+            } else {
+                gVal.style.color = "#ffffff"; gVal.style.textShadow = "none";
+                gLabel.innerText = "STANDBY"; gLabel.style.color = "rgba(161, 161, 170, 0.8)";
+                gIcon.className = "ph-fill ph-plug text-zinc-500 text-2xl";
+                gIconBg.className = "p-3 rounded-2xl bg-zinc-500/10 border border-zinc-500/20";
+                gLayer.style.background = "none";
+                
+                flowText.innerText = "IDLE"; flowText.className = "relative z-10 text-xs font-semibold tracking-[0.2em] text-zinc-600 uppercase";
+                particle.style.opacity = 0;
+            }
+        }
+
+        function drawSparkline(type, dataArray) {
+            const width = 100;
+            const height = 100;
+            const step = width / (dataArray.length - 1);
+            
+            let dFill = `M 0,${height} `;
+            let dLine = `M 0,${height - dataArray[0]} `;
+            
+            dataArray.forEach((val, i) => {
+                const x = i * step;
+                const y = height - val; 
+                dFill += `L ${x.toFixed(1)},${y.toFixed(1)} `;
+                if(i > 0) dLine += `L ${x.toFixed(1)},${y.toFixed(1)} `;
+            });
+            
+            dFill += `L ${width},${height} Z`;
+            
+            document.getElementById(`path-${type}-fill`).setAttribute('d', dFill);
+            document.getElementById(`path-${type}-line`).setAttribute('d', dLine);
+        }
+
+        // --- Boot Sequence ---
+        fetchInverterData();
+        setInterval(fetchInverterData, 2500);
+
+    </script>
+</body>
+</html>

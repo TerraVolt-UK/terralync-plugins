@@ -1,0 +1,28 @@
+{
+  "id": "in-home-display",
+  "name": "In Home Display",
+  "version": "1.0.0",
+  "min_terralync": "1.0.0",
+  "author": "TerraLync Team",
+  "description": "A beautiful, modern in-home display showing real-time energy flow with animated visualizations for solar, house load, battery, and grid status.",
+  "license": "MIT",
+  "homepage": "https://github.com/terralync/in-home-display",
+  "entry_point": "main.py",
+
+  "permissions": {
+    "read_inverter_data": true,
+    "read_historian": false,
+    "write_inverter": false,
+    "write_scheduler": false,
+    "network_access": false,
+    "filesystem": "own_dir"
+  },
+
+  "lifecycle": {
+    "start_delay_seconds": 2,
+    "restart_on_crash": true,
+    "max_restarts": 3,
+    "restart_cooldown_seconds": 30,
+    "health_check_interval_seconds": 60
+  }
+}
