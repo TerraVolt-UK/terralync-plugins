@@ -1,0 +1,60 @@
+{
+  "title": "Axle Energy VPP Configuration",
+  "description": "Configure automatic battery export during Axle Energy grid events. Uses quick settings for immediate response without modifying your schedules.",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "title": "Enable Axle Energy VPP",
+      "description": "Turn on automatic response to grid events",
+      "default": false
+    },
+    "api_key": {
+      "type": "string",
+      "title": "Axle API Key",
+      "description": "Your Axle Energy API authentication token",
+      "format": "password",
+      "minLength": 10
+    },
+    "poll_interval_normal": {
+      "type": "integer",
+      "title": "Normal Polling Interval",
+      "description": "Minutes between API checks when no event is active",
+      "enum": [1, 5, 10, 15, 30],
+      "default": 10
+    },
+    "poll_interval_fast": {
+      "type": "integer",
+      "title": "Fast Polling Interval",
+      "description": "Minutes between API checks when an event is approaching or active",
+      "enum": [1, 2, 5],
+      "default": 1
+    },
+    "fast_poll_window": {
+      "type": "integer",
+      "title": "Fast Poll Window",
+      "description": "Hours before event start to begin fast polling",
+      "minimum": 0,
+      "maximum": 12,
+      "default": 2
+    },
+    "export_power": {
+      "type": "integer",
+      "title": "Export Power Level",
+      "description": "Maximum discharge power during events (0-50, where 50 = maximum export)",
+      "minimum": 0,
+      "maximum": 50,
+      "default": 50
+    },
+    "discharge_target_soc": {
+      "type": "integer",
+      "title": "Discharge Target SOC",
+      "description": "Minimum battery level to discharge to during events (0-100%)",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 4
+    }
+  },
+  "required": ["api_key"],
+  "order": ["enabled", "api_key", "poll_interval_normal", "poll_interval_fast", "fast_poll_window", "export_power", "discharge_target_soc"]
+}

@@ -1,0 +1,3 @@
+# Axle Energy VPP Plugin - Python Dependencies
+# This plugin uses only the Python standard library (urllib, asyncio, json, etc.)
+# No additional packages required.
