@@ -1,0 +1,16 @@
+{
+  "fields": [
+    {
+      "key": "display_style",
+      "label": "Display Style",
+      "description": "Choose the visual style for your In-Home Display",
+      "type": "select",
+      "options": [
+        "bento-grid",
+        "nexus-fluid"
+      ],
+      "default": "bento-grid",
+      "required": true
+    }
+  ]
+}

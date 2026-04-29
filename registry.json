@@ -3,10 +3,19 @@
     {
       "id": "in-home-display",
       "name": "In-Home Display",
-      "version": "1.0.0",
-      "description": "Real-time in-home display for TerraLync showing solar, battery, and grid power",
+      "version": "1.1.0",
+      "description": "Real-time in-home display for TerraLync showing solar, battery, and grid power. Features dual display modes (Bento Grid and NEXUS Fluid) selectable via plugin settings.",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/archive/refs/tags/v1.0.0.tar.gz",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/archive/refs/tags/v1.1.0.tar.gz",
+      "checksum_sha256": ""
+    },
+    {
+      "id": "axle-energy",
+      "name": "Axle Energy VPP",
+      "version": "1.0.0",
+      "description": "Virtual Power Plant integration for Axle Energy - automatic battery export during grid events",
+      "author": "TerraLync Team",
+      "download_url": "",
       "checksum_sha256": ""
     }
   ]
