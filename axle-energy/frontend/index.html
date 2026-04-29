@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Axle Energy VPP - Event History</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        :root {
+            --bg-void: #0a0a0f;
+            --bg-card: #141419;
+            --accent-primary: #22c55e;
+            --accent-secondary: #3b82f6;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-void);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: linear-gradient(145deg, rgba(20, 20, 25, 0.9) 0%, rgba(15, 15, 20, 0.95) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+        }
+        
+        .event-status-active {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+        
+        .event-status-upcoming {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+        }
+        
+        .event-status-completed {
+            background: linear-gradient(135deg, rgba(156, 163, 175, 0.1) 0%, rgba(156, 163, 175, 0.05) 100%);
+            border: 1px solid rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+        
+        .power-export {
+            color: #22c55e;
+        }
+        
+        .power-import {
+            color: #ef4444;
+        }
+        
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .table-row {
+            transition: all 0.2s ease;
+        }
+        
+        .table-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .empty-state {
+            opacity: 0.5;
+        }
+        
+        .refresh-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .refresh-btn.spinning i {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                        <i class="ph-fill ph-lightning text-2xl text-green-400"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight">Axle Energy VPP</h1>
+                        <p class="text-sm text-gray-400">Virtual Power Plant Event History</p>
+                    </div>
+                </div>
+                <button id="refreshBtn" class="refresh-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition-all">
+                    <i class="ph ph-arrows-clockwise"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+            
+            <!-- Status Bar -->
+            <div class="glass-card p-4 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div id="pluginStatus" class="flex items-center gap-2">
+                        <span class="pulse-dot"></span>
+                        <span class="text-sm font-medium text-green-400">Plugin Active</span>
+                    </div>
+                    <div class="h-4 w-px bg-white/10"></div>
+                    <div class="text-sm text-gray-400">
+                        Last Poll: <span id="lastPollTime" class="text-white">--</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-sm text-gray-400">
+                        Next Poll: <span id="nextPollTime" class="text-white">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Event Card -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex items-center gap-2 mb-4">
+                <i class="ph-fill ph-calendar-check text-lg text-gray-400"></i>
+                <h2 class="text-lg font-medium">Current / Next Event</h2>
+            </div>
+            
+            <div id="currentEventCard">
+                <!-- Dynamic content -->
+                <div class="text-center py-12 empty-state">
+                    <i class="ph ph-calendar-blank text-4xl mb-3"></i>
+                    <p class="text-gray-400">No active or upcoming events</p>
+                    <p class="text-sm text-gray-500 mt-1">Check back later or view your history below</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Event History -->
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-clock-counter-clockwise text-lg text-gray-400"></i>
+                    <h2 class="text-lg font-medium">Event History</h2>
+                </div>
+                <span id="historyCount" class="text-sm text-gray-400 px-3 py-1 rounded-full bg-white/5">0 events</span>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left border-b border-white/10">
+                            <th class="pb-3 text-sm font-medium text-gray-400 pl-4">Date</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Start Time</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">End Time</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Duration</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Direction</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTable">
+                        <!-- Dynamic content -->
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-gray-500">
+                                <i class="ph ph-spinner animate-spin text-2xl mb-2 block"></i>
+                                Loading event history...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-8 text-center text-sm text-gray-500">
+            <p>Axle Energy VPP Plugin v1.0.0</p>
+            <p class="mt-1">Responding to grid events with your battery storage</p>
+        </div>
+    </div>
+
+    <script>
+        // API base URL (same origin since plugin frontend is served by TerraLync)
+        const API_BASE = '';
+        
+        // Format date/time helpers
+        function formatDateTime(isoString) {
+            if (!isoString) return '--';
+            const date = new Date(isoString);
+            return date.toLocaleString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function formatDate(isoString) {
+            if (!isoString) return '--';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+        
+        function formatTime(isoString) {
+            if (!isoString) return '--';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function calculateDuration(start, end) {
+            if (!start || !end) return '--';
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            const diff = (endDate - startDate) / 1000 / 60; // minutes
+            
+            if (diff < 60) {
+                return `${Math.round(diff)} min`;
+            }
+            const hours = Math.floor(diff / 60);
+            const mins = Math.round(diff % 60);
+            return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+        }
+        
+        function formatRelativeTime(isoString) {
+            if (!isoString) return '--';
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = (now - date) / 1000; // seconds
+            
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+            return `${Math.floor(diff / 86400)} days ago`;
+        }
+        
+        // Fetch plugin data from events.json endpoint
+        // Since plugins can't add API endpoints, we'll use a workaround
+        // The plugin stores events.json in its data directory
+        // We'll fetch it via a relative path to the plugin's static files
+        async function fetchEventHistory() {
+            try {
+                // The events.json is in the plugin data directory
+                // We need to access it via a custom endpoint or check if plugin provides it
+                // For now, return empty until we implement the data endpoint
+                const response = await fetch('../events.json');
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (e) {
+                console.log('No event history file yet');
+            }
+            return [];
+        }
+        
+        async function fetchPluginState() {
+            try {
+                const response = await fetch('../plugin_state.json');
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (e) {
+                console.log('No plugin state file yet');
+            }
+            return null;
+        }
+        
+        // Render functions
+        function renderCurrentEvent(event, isActive) {
+            const container = document.getElementById('currentEventCard');
+            
+            if (!event) {
+                container.innerHTML = `
+                    <div class="text-center py-12 empty-state">
+                        <i class="ph ph-calendar-blank text-4xl mb-3"></i>
+                        <p class="text-gray-400">No active or upcoming events</p>
+                        <p class="text-sm text-gray-500 mt-1">Check back later or view your history below</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const statusClass = isActive ? 'event-status-active' : 'event-status-upcoming';
+            const statusText = isActive ? 'ACTIVE NOW' : 'UPCOMING';
+            const direction = event.import_export > 0 ? 'Export' : 'Import';
+            const directionClass = event.import_export > 0 ? 'power-export' : 'power-import';
+            const directionIcon = event.import_export > 0 ? 'ph-arrow-up' : 'ph-arrow-down';
+            
+            container.innerHTML = `
+                <div class="grid md:grid-cols-4 gap-4">
+                    <div class="${statusClass} rounded-xl p-4 flex flex-col justify-center">
+                        <span class="text-xs font-semibold tracking-wider opacity-80 mb-1">STATUS</span>
+                        <span class="text-lg font-semibold">${statusText}</span>
+                    </div>
+                    
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <div class="text-xs text-gray-400 mb-1">START TIME</div>
+                        <div class="text-lg font-medium">${formatDateTime(event.start_time)}</div>
+                    </div>
+                    
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <div class="text-xs text-gray-400 mb-1">END TIME</div>
+                        <div class="text-lg font-medium">${formatDateTime(event.end_time)}</div>
+                    </div>
+                    
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <div class="text-xs text-gray-400 mb-1">DIRECTION</div>
+                        <div class="text-lg font-medium ${directionClass} flex items-center gap-2">
+                            <i class="ph-fill ${directionIcon}"></i>
+                            ${direction}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-400">
+                            Duration: <span class="text-white">${calculateDuration(event.start_time, event.end_time)}</span>
+                        </div>
+                        <div class="text-sm text-gray-400">
+                            Last updated: <span class="text-white">${formatRelativeTime(event.updated_at)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderHistory(events) {
+            const tableBody = document.getElementById('historyTable');
+            const countBadge = document.getElementById('historyCount');
+            
+            countBadge.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}`;
+            
+            if (!events || events.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-gray-500">
+                            <i class="ph ph-info text-2xl mb-2 block"></i>
+                            No events recorded yet
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Sort by timestamp descending
+            const sortedEvents = [...events].reverse();
+            
+            tableBody.innerHTML = sortedEvents.map(event => {
+                const direction = event.import_export > 0 ? 'Export' : 'Import';
+                const directionClass = event.import_export > 0 ? 'power-export' : 'power-import';
+                const statusClass = event.action === 'started' ? 'event-status-active' : 'event-status-completed';
+                const statusText = event.action === 'started' ? 'Completed' : 'Ended';
+                
+                return `
+                    <tr class="table-row border-b border-white/5 last:border-0">
+                        <td class="py-4 pl-4 text-sm">${formatDate(event.event_start)}</td>
+                        <td class="py-4 text-sm text-gray-300">${formatTime(event.event_start)}</td>
+                        <td class="py-4 text-sm text-gray-300">${formatTime(event.event_end)}</td>
+                        <td class="py-4 text-sm text-gray-300">${calculateDuration(event.event_start, event.event_end)}</td>
+                        <td class="py-4 text-sm">
+                            <span class="${directionClass} flex items-center gap-1">
+                                <i class="ph-fill ${event.import_export > 0 ? 'ph-arrow-up' : 'ph-arrow-down'}"></i>
+                                ${direction}
+                            </span>
+                        </td>
+                        <td class="py-4">
+                            <span class="${statusClass} px-3 py-1 rounded-full text-xs font-medium inline-block">
+                                ${statusText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        async function updateDashboard() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('spinning');
+            
+            try {
+                // Fetch state and history in parallel
+                const [state, history] = await Promise.all([
+                    fetchPluginState(),
+                    fetchEventHistory()
+                ]);
+                
+                // Update status indicators
+                if (state) {
+                    document.getElementById('lastPollTime').textContent = 
+                        state.last_saved ? formatRelativeTime(state.last_saved) : '--';
+                    
+                    renderCurrentEvent(state.current_event, state.event_active);
+                }
+                
+                renderHistory(history);
+                
+            } catch (error) {
+                console.error('Failed to update dashboard:', error);
+            } finally {
+                btn.classList.remove('spinning');
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refreshBtn').addEventListener('click', updateDashboard);
+            updateDashboard();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(updateDashboard, 30000);
+        });
+    </script>
+</body>
+</html>

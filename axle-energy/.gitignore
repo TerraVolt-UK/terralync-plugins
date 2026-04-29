@@ -1,0 +1,9 @@
+# Plugin runtime files - do not commit
+events.json
+plugin_state.json
+settings.json
+logs/
+__pycache__/
+*.pyc
+*.log
+.venv/
