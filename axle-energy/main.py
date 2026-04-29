@@ -47,7 +47,7 @@ class AxlePlugin:
         self.current_event: Optional[Dict] = None
         self.event_active = False
         self.last_poll_time: Optional[datetime] = None
-        self.next_poll_interval = 600  # Default 10 minutes
+        self.next_poll_interval = 900  # Default 15 minutes (900 seconds)
         self.running = False
         
         # Track auto-resume tasks per inverter to cancel if needed
@@ -177,34 +177,45 @@ class AxlePlugin:
             return None, None
     
     def _calculate_event_duration_minutes(self, event: Dict) -> int:
-        """Calculate event duration in minutes for auto-resume."""
+        """Calculate total duration for auto-resume including buffer on both sides.
+        
+        The inverter is set to discharge buffer minutes BEFORE the event starts
+        and continues until buffer minutes AFTER the event ends.
+        """
         start, end = self._parse_event_times(event)
         if not start or not end:
             # Default to 4 hours if parsing fails
             return 240
+        
+        buffer_minutes = self.settings.get("event_buffer_minutes", 3)
         duration = (end - start).total_seconds() / 60
-        # Add 15 minute buffer for safety
-        return int(duration) + 15
+        # Add buffer on both sides (before start and after end)
+        return int(duration) + (buffer_minutes * 2)
     
     def _calculate_poll_interval(self, event: Optional[Dict]) -> int:
         """Calculate appropriate polling interval based on event timing."""
         if not event:
             # No event - use normal interval
-            return self.settings.get("poll_interval_normal", 10) * 60
+            return self.settings.get("poll_interval_normal", 15) * 60
         
         start, end = self._parse_event_times(event)
         if not start or not end:
-            return self.settings.get("poll_interval_normal", 10) * 60
+            return self.settings.get("poll_interval_normal", 15) * 60
         
         now = datetime.utcnow()
-        fast_window_hours = self.settings.get("fast_poll_window", 2)
-        fast_before_start = start - timedelta(hours=fast_window_hours)
+        fast_window_hours = self.settings.get("fast_poll_window", 1)
+        buffer_minutes = self.settings.get("event_buffer_minutes", 3)
         
-        # Fast polling: within fast window of start or during event
-        if fast_before_start <= now <= end:
-            return self.settings.get("poll_interval_fast", 1) * 60
+        # Start fast polling before the event start minus buffer and fast window
+        fast_before_start = start - timedelta(hours=fast_window_hours, minutes=buffer_minutes)
+        # Continue fast polling until event end plus buffer
+        buffered_end = end + timedelta(minutes=buffer_minutes)
         
-        return self.settings.get("poll_interval_normal", 10) * 60
+        # Fast polling: within fast window of buffered start or during buffered event period
+        if fast_before_start <= now <= buffered_end:
+            return self.settings.get("poll_interval_fast", 90)
+        
+        return self.settings.get("poll_interval_normal", 15) * 60
     
     async def _get_all_inverters(self) -> List[str]:
         """Get list of all connected inverter serial numbers."""
@@ -353,17 +364,22 @@ class AxlePlugin:
         if event:
             start, end = self._parse_event_times(event)
             if start and end:
-                logger.info(f"Event found: {start} to {end}")
+                buffer_minutes = self.settings.get("event_buffer_minutes", 3)
+                buffered_start = start - timedelta(minutes=buffer_minutes)
+                buffered_end = end + timedelta(minutes=buffer_minutes)
                 
-                # Check if event is currently active
-                if start <= now <= end:
+                logger.info(f"Event found: {start} to {end} (buffered: {buffered_start} to {buffered_end})")
+                
+                # Check if we're within the buffered event window
+                # (starts buffer minutes before event, ends buffer minutes after)
+                if buffered_start <= now <= buffered_end:
                     if not self.event_active:
-                        logger.info("Event is now ACTIVE - triggering export")
+                        logger.info(f"Event BUFFER period active - triggering export ({buffer_minutes} min buffer)")
                         self.event_active = True
                         self.current_event = event
                         
                         # Trigger discharge_now on all inverters
-                        # This will auto-resume after event duration
+                        # Auto-resume covers full buffered duration
                         success = await self._trigger_export_on_all_inverters(event)
                         
                         if success:
@@ -375,14 +391,28 @@ class AxlePlugin:
                         
                         self._save_state()
                     else:
-                        # Event still active, check if we need to extend
+                        # Event still active within buffer, check if we need to extend
                         # (in case event end time was extended)
                         pass
                 else:
-                    # Event is upcoming
-                    if now < start:
-                        minutes_until = (start - now).total_seconds() / 60
-                        logger.debug(f"Event upcoming in {minutes_until:.0f} minutes")
+                    # Event is upcoming (before buffer period)
+                    if now < buffered_start:
+                        minutes_until = (buffered_start - now).total_seconds() / 60
+                        logger.debug(f"Event upcoming in {minutes_until:.0f} minutes (includes {buffer_minutes} min buffer)")
+            
+            # Check if current event has passed its buffered end time
+            if self.event_active and self.current_event:
+                _, current_end = self._parse_event_times(self.current_event)
+                if current_end:
+                    buffer_minutes = self.settings.get("event_buffer_minutes", 3)
+                    buffered_current_end = current_end + timedelta(minutes=buffer_minutes)
+                    if now > buffered_current_end:
+                        logger.info("Buffered event period has ended - resuming normal operation")
+                        self.event_active = False
+                        await self._resume_all_inverters()
+                        self._log_event(self.current_event, "ended")
+                        self.current_event = None
+                        self._save_state()
         else:
             logger.debug("No active or upcoming events")
             

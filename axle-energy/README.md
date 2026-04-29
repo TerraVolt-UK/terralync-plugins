@@ -45,9 +45,10 @@ Access settings via TerraLync Dashboard → Plugins → Axle Energy VPP → Sett
 ### Optional Settings
 
 - **Enable Axle Energy VPP**: Master on/off switch
-- **Normal Polling Interval**: Minutes between checks when no event (default: 10)
-- **Fast Polling Interval**: Minutes between checks near events (default: 1)
-- **Fast Poll Window**: Hours before event to start fast polling (default: 2)
+- **Normal Polling Interval**: Minutes between checks when no event (default: 15)
+- **Fast Polling Interval**: Seconds between checks near events (default: 90)
+- **Fast Poll Window**: Hours before event to start fast polling (default: 1)
+- **Event Buffer Minutes**: Minutes to start before and continue after event (default: 3)
 - **Export Power Level**: Max discharge power 0-50 (default: 50 = max)
 - **Discharge Target SOC**: Minimum battery level during events (default: 4%)
 
@@ -56,15 +57,16 @@ Access settings via TerraLync Dashboard → Plugins → Axle Energy VPP → Sett
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  POLLING PHASE (every X minutes)                              │
-│  • Normal: 10 min when no event                              │
-│  • Fast: 1 min when event within 2 hours or active          │
+│  • Normal: 15 min when no event                              │
+│  • Fast: 90 sec when event within 1 hour or active          │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  EVENT DETECTED                                              │
 │  • Calculate event duration                                  │
-│  • Compute auto_resume_minutes = duration + 15min buffer      │
+│  • Compute auto_resume_minutes = duration + (2 × buffer)     │
+│  • Buffer applied BEFORE and AFTER event time                │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -179,10 +181,19 @@ The Quick Settings approach was chosen because:
 ### Event Duration Calculation
 
 ```python
-auto_resume_minutes = (event_end - event_start).total_seconds() / 60 + 15
+event_duration = (event_end - event_start).total_seconds() / 60
+buffer_minutes = 3  # configurable, default 3
+auto_resume_minutes = event_duration + (buffer_minutes * 2)
 ```
 
-The 15-minute buffer ensures the inverter doesn't resume mid-event if there are clock sync issues.
+The buffer time (default 3 minutes) is applied on BOTH sides of the event:
+- **Before**: Discharge starts 3 minutes early (clock safety margin)
+- **After**: Discharge continues 3 minutes past event end (network/API latency margin)
+
+For a 60-minute event with 3-minute buffer:
+- **Trigger time**: Event start - 3 minutes
+- **Resume time**: Event end + 3 minutes  
+- **Total duration**: 66 minutes
 
 ### Multi-Inverter Handling
 

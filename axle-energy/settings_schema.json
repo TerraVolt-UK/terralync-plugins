@@ -21,14 +21,14 @@
       "title": "Normal Polling Interval",
       "description": "Minutes between API checks when no event is active",
       "enum": [1, 5, 10, 15, 30],
-      "default": 10
+      "default": 15
     },
     "poll_interval_fast": {
       "type": "integer",
       "title": "Fast Polling Interval",
-      "description": "Minutes between API checks when an event is approaching or active",
-      "enum": [1, 2, 5],
-      "default": 1
+      "description": "Seconds between API checks when an event is approaching or active",
+      "enum": [30, 60, 90, 120, 300],
+      "default": 90
     },
     "fast_poll_window": {
       "type": "integer",
@@ -36,7 +36,7 @@
       "description": "Hours before event start to begin fast polling",
       "minimum": 0,
       "maximum": 12,
-      "default": 2
+      "default": 1
     },
     "export_power": {
       "type": "integer",
@@ -53,8 +53,16 @@
       "minimum": 0,
       "maximum": 100,
       "default": 4
+    },
+    "event_buffer_minutes": {
+      "type": "integer",
+      "title": "Event Buffer Minutes",
+      "description": "Minutes to start before event and continue after event ends",
+      "minimum": 0,
+      "maximum": 30,
+      "default": 3
     }
   },
   "required": ["api_key"],
-  "order": ["enabled", "api_key", "poll_interval_normal", "poll_interval_fast", "fast_poll_window", "export_power", "discharge_target_soc"]
+  "order": ["enabled", "api_key", "poll_interval_normal", "poll_interval_fast", "fast_poll_window", "event_buffer_minutes", "export_power", "discharge_target_soc"]
 }
