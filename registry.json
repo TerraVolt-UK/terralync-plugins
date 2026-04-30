@@ -16,7 +16,7 @@
       "description": "Virtual Power Plant integration for Axle Energy - automatic battery export during grid events",
       "author": "TerraLync Team",
       "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/v1.0.1/axle-energy-1.0.1.tar.gz",
-      "checksum_sha256": ""
+      "checksum_sha256": "5bdbfc8e8f12cbdabff4f12fc2f0e23697922d1d254f6c9d99ce892941e26680"
     },
     {
       "id": "octopus-energy",
