@@ -1,0 +1,119 @@
+name: Release Plugins
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get tag version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build per-plugin archives and update registry
+        id: build
+        run: |
+          set -e
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${GITHUB_REF_NAME}"
+          REPO="${GITHUB_REPOSITORY}"
+
+          mkdir -p dist
+
+          # Find all plugin directories (contain a plugin.json)
+          PLUGIN_IDS=""
+          for plugin_dir in */; do
+            plugin_dir="${plugin_dir%/}"
+            if [ -f "${plugin_dir}/plugin.json" ]; then
+              PLUGIN_IDS="${PLUGIN_IDS} ${plugin_dir}"
+            fi
+          done
+
+          echo "Found plugins:${PLUGIN_IDS}"
+
+          # Package each plugin as its own archive
+          for plugin_id in $PLUGIN_IDS; do
+            archive_name="${plugin_id}-${VERSION}.tar.gz"
+            echo "Packaging ${plugin_id} → ${archive_name}"
+            tar \
+              --exclude='__pycache__' \
+              --exclude='*.pyc' \
+              --exclude='.venv' \
+              --exclude='logs' \
+              --exclude='plugin_state.json' \
+              --exclude='settings.json' \
+              -czf "dist/${archive_name}" \
+              -C . \
+              "${plugin_id}"
+            echo "  Created dist/${archive_name} ($(du -sh dist/${archive_name} | cut -f1))"
+          done
+
+          # Rewrite registry.json with correct per-plugin download_url
+          python3 - <<PYEOF
+          import json, os, hashlib
+
+          version = "${VERSION}"
+          tag = "${TAG}"
+          repo = "${REPO}"
+          base_url = f"https://github.com/{repo}/releases/download/{tag}"
+
+          with open("registry.json") as f:
+              registry = json.load(f)
+
+          for plugin in registry["plugins"]:
+              pid = plugin["id"]
+              archive = f"{pid}-{version}.tar.gz"
+              archive_path = f"dist/{archive}"
+
+              if not os.path.exists(archive_path):
+                  print(f"WARNING: no archive for {pid}, skipping")
+                  continue
+
+              # Compute SHA-256
+              sha256 = hashlib.sha256(open(archive_path, "rb").read()).hexdigest()
+
+              plugin["download_url"] = f"{base_url}/{archive}"
+              plugin["checksum_sha256"] = sha256
+              plugin["version"] = version
+              print(f"Updated {pid}: {plugin['download_url']}")
+
+          with open("registry.json", "w") as f:
+              json.dump(registry, f, indent=2)
+              f.write("\n")
+
+          print("registry.json updated")
+          PYEOF
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
+          body: |
+            Plugin release ${{ github.ref_name }}
+
+            Individual plugin archives are attached. The `registry.json` in this
+            release has been updated with correct per-plugin download URLs and
+            SHA-256 checksums.
+          generate_release_notes: true
+
+      - name: Commit updated registry.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add registry.json
+          git diff --staged --quiet || git commit -m "chore: update registry.json for ${{ github.ref_name }}"
+          git push origin HEAD:main

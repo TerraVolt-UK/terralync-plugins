@@ -6,7 +6,7 @@
       "version": "1.1.0",
       "description": "Real-time in-home display for TerraLync showing solar, battery, and grid power. Features dual display modes (Bento Grid and NEXUS Fluid) selectable via plugin settings.",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/archive/refs/tags/v1.1.0.tar.gz",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/v1.1.0/in-home-display-1.1.0.tar.gz",
       "checksum_sha256": ""
     },
     {
@@ -15,7 +15,16 @@
       "version": "1.0.0",
       "description": "Virtual Power Plant integration for Axle Energy - automatic battery export during grid events",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/archive/refs/tags/v1.1.0.tar.gz",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/v1.0.0/axle-energy-1.0.0.tar.gz",
+      "checksum_sha256": ""
+    },
+    {
+      "id": "octopus-energy",
+      "name": "Octopus Energy Tariff Optimiser",
+      "version": "1.0.0",
+      "description": "Links your Octopus Energy account to TerraLync for tariff-aware battery scheduling. Supports Intelligent Go, Agile, and Saving Session participation.",
+      "author": "TerraLync Team",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/v1.0.0/octopus-energy-1.0.0.tar.gz",
       "checksum_sha256": ""
     }
   ]
