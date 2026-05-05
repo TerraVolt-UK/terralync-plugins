@@ -203,8 +203,9 @@
 
         .node-solar { 
             width: clamp(50px, 8vmin, 80px); height: clamp(50px, 8vmin, 80px); 
-            background: var(--c-nexus-solar); top: 10%; left: 50%; 
-            box-shadow: 0 0 60px var(--c-nexus-solar); 
+            background: var(--c-nexus-solar); 
+            top: 10%; left: 50%; 
+            box-shadow: 0 0 80px var(--c-nexus-solar); 
             z-index: 6; 
             transition: opacity 1.2s ease; 
         }
@@ -576,14 +577,17 @@
                     <div class="core-sub" id="nexus-lbl-batt">Optimizing</div>
                 </div>
 
-                <div id="hud-bottom" style="position:absolute;bottom:clamp(12px,2.5vw,20px);left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;">
-                    <div style="display:flex;align-items:center;gap:16px;font-size:clamp(9px,1.2vw,11px);font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);">
-                        <span id="sunrise-label" style="display:flex;align-items:center;gap:4px;"><span style="font-size:1.3em;filter:grayscale(1);">🌅</span><span id="sunrise-time">--:--</span></span>
-                        <span style="opacity:0.3;">·</span>
-                        <span id="sunset-label" style="display:flex;align-items:center;gap:4px;"><span id="sunset-time">--:--</span><span style="font-size:1.3em;filter:grayscale(1);">🌇</span></span>
-                    </div>
-                    <div class="clock" id="clock">00:00</div>
+                <!-- Sunrise label: positioned at arc start by JS -->
+                <div id="sunrise-label" style="position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;transform:translate(-50%,0);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <span id="sunrise-time" style="font-size:clamp(8px,1vw,10px);font-weight:600;letter-spacing:1.5px;color:rgba(255,255,255,0.35);">--:--</span>
                 </div>
+                <!-- Sunset label: positioned at arc end by JS -->
+                <div id="sunset-label" style="position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;transform:translate(-50%,0);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <span id="sunset-time" style="font-size:clamp(8px,1vw,10px);font-weight:600;letter-spacing:1.5px;color:rgba(255,255,255,0.35);">--:--</span>
+                </div>
+                <div class="clock" id="clock" style="position:absolute;bottom:clamp(12px,2.5vw,20px);left:50%;transform:translateX(-50%);">00:00</div>
             </div>
 
             <div class="glass-overlay"></div>
@@ -907,10 +911,10 @@
 
         // Bezier control points (in % of container) for the sun arc
         const ARC = {
-            startX: 5,  startY: 82,
+            startX: 8,  startY: 78,
             cp1x:  15,  cp1y:  5,
             cp2x:  85,  cp2y:  5,
-            endX:  95,  endY:  82
+            endX:  92,  endY:  78
         };
 
         // Returns sun position as {x, y} percentages along the arc, or null at night
@@ -969,8 +973,20 @@
 
         // Position the .node-solar element along the arc; update POS.solar so
         // droplets emit from the moving sun. At night, hide the sun blob.
+        // Also pin sunrise/sunset labels to arc endpoints.
         function updateSunPosition() {
             if (!nexusUI.nodeSolar) return;
+
+            // Pin sunrise/sunset labels to arc endpoints (done every frame but cheap)
+            if (nexusUI.sunriseLabel) {
+                nexusUI.sunriseLabel.style.left = ARC.startX + '%';
+                nexusUI.sunriseLabel.style.top  = (ARC.startY + 3) + '%';
+            }
+            if (nexusUI.sunsetLabel) {
+                nexusUI.sunsetLabel.style.left = ARC.endX + '%';
+                nexusUI.sunsetLabel.style.top  = (ARC.endY + 3) + '%';
+            }
+
             const pos = getSunPosPct();
             if (!pos) {
                 // Night — hide sun, leave POS.solar at default top-centre
@@ -1082,6 +1098,8 @@
             nexusUI.nodeGrid = document.getElementById('node-grid');
             nexusUI.nodeCore = document.getElementById('node-core');
             nexusUI.nodeSolar = document.querySelector('.node-solar');
+            nexusUI.sunriseLabel = document.getElementById('sunrise-label');
+            nexusUI.sunsetLabel  = document.getElementById('sunset-label');
             nexusUI.clock = document.getElementById('clock');
             nexusUI.sunCanvas = document.getElementById('sun-arc-canvas');
 
