@@ -45,43 +45,68 @@ jobs:
 
           echo "Found plugins:${PLUGIN_IDS}"
 
-          # Package each plugin as its own archive
+          # Determine which plugin is being released by checking plugin.json versions
+          RELEASED_PLUGIN=""
           for plugin_id in $PLUGIN_IDS; do
-            archive_name="${plugin_id}-${VERSION}.tar.gz"
-            echo "Packaging ${plugin_id} → ${archive_name}"
-            tar \
-              --exclude='__pycache__' \
-              --exclude='*.pyc' \
-              --exclude='.venv' \
-              --exclude='logs' \
-              --exclude='plugin_state.json' \
-              --exclude='settings.json' \
-              -czf "dist/${archive_name}" \
-              -C . \
-              "${plugin_id}"
-            echo "  Created dist/${archive_name} ($(du -sh dist/${archive_name} | cut -f1))"
+            plugin_version=$(jq -r '.version' "${plugin_id}/plugin.json" 2>/dev/null || echo "")
+            if [ "$plugin_version" = "$VERSION" ]; then
+              RELEASED_PLUGIN="${plugin_id}"
+              echo "Identified release plugin: ${plugin_id} at version ${plugin_version}"
+              break
+            fi
           done
 
-          # Rewrite registry.json with correct per-plugin download_url
+          if [ -z "$RELEASED_PLUGIN" ]; then
+            echo "ERROR: No plugin found with version ${VERSION} in plugin.json"
+            echo "Available plugins and versions:"
+            for plugin_id in $PLUGIN_IDS; do
+              plugin_version=$(jq -r '.version' "${plugin_id}/plugin.json" 2>/dev/null || echo "unknown")
+              echo "  ${plugin_id}: ${plugin_version}"
+            done
+            exit 1
+          fi
+
+          # Only package the released plugin
+          archive_name="${RELEASED_PLUGIN}-${VERSION}.tar.gz"
+          echo "Packaging ${RELEASED_PLUGIN} → ${archive_name}"
+          tar \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.venv' \
+            --exclude='logs' \
+            --exclude='plugin_state.json' \
+            --exclude='settings.json' \
+            -czf "dist/${archive_name}" \
+            -C . \
+            "${RELEASED_PLUGIN}"
+          echo "  Created dist/${archive_name} ($(du -sh dist/${archive_name} | cut -f1))"
+
+          # Rewrite registry.json - only update the released plugin
           python3 - <<PYEOF
           import json, os, hashlib
 
           version = "${VERSION}"
           tag = "${TAG}"
           repo = "${REPO}"
+          released_plugin = "${RELEASED_PLUGIN}"
           base_url = f"https://github.com/{repo}/releases/download/{tag}"
 
           with open("registry.json") as f:
               registry = json.load(f)
 
+          # Only update the plugin being released
           for plugin in registry["plugins"]:
+              if plugin["id"] != released_plugin:
+                  print(f"Skipping {plugin['id']} (not the released plugin)")
+                  continue
+
               pid = plugin["id"]
               archive = f"{pid}-{version}.tar.gz"
               archive_path = f"dist/{archive}"
 
               if not os.path.exists(archive_path):
-                  print(f"WARNING: no archive for {pid}, skipping")
-                  continue
+                  print(f"ERROR: no archive for {pid}")
+                  exit(1)
 
               # Compute SHA-256
               sha256 = hashlib.sha256(open(archive_path, "rb").read()).hexdigest()
@@ -95,7 +120,7 @@ jobs:
               json.dump(registry, f, indent=2)
               f.write("\n")
 
-          print("registry.json updated")
+          print("registry.json updated (only released plugin)")
           PYEOF
 
       - name: Create GitHub Release and upload assets
