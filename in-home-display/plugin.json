@@ -1,7 +1,7 @@
 {
   "id": "in-home-display",
   "name": "In Home Display",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "min_terralync": "1.0.0",
   "author": "TerraLync Team",
   "description": "A beautiful, modern in-home display showing real-time energy flow with animated visualizations for solar, house load, battery, and grid status. Features dual display modes (Bento Grid and NEXUS Fluid) selectable via plugin settings.",
