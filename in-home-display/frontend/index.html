@@ -768,14 +768,14 @@
             const bVal = document.getElementById('val-batt-w');
 
             if (state.battery < 0) {
-                bLabel.innerText = "CHARGING"; 
+                bLabel.innerText = "CHARGE"; 
                 bLabel.className = "text-xs text-amber-500/80 font-medium tracking-widest mt-1";
                 bIcon.className = "ph-fill ph-battery-charging text-amber-500 text-2xl pulse-indicator";
                 bIconBg.className = "p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]";
                 bLayer.style.background = "radial-gradient(circle at top right, rgba(245, 158, 11, 0.05), transparent 60%)";
                 bVal.style.color = "var(--c-solar)";
             } else if (state.battery > 0) {
-                bLabel.innerText = "DISCHARGING"; 
+                bLabel.innerText = "DISCHARGE"; 
                 bLabel.className = "text-xs text-violet-500/80 font-medium tracking-widest mt-1";
                 bIcon.className = "ph-fill ph-battery-warning text-violet-500 text-2xl";
                 bIconBg.className = "p-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 shadow-[0_0_15px rgba(139,92,246,0.1)]";
@@ -1271,10 +1271,10 @@
 
             // Battery label (positive = discharging, negative = charging)
             if (nexusDisplay.battery > 50) {
-                nexusUI.battLbl.textContent = 'Discharging';
+                nexusUI.battLbl.textContent = 'Discharge';
                 nexusUI.battLbl.style.color = '#010104';
             } else if (nexusDisplay.battery < -50) {
-                nexusUI.battLbl.textContent = 'Charging';
+                nexusUI.battLbl.textContent = 'Charge';
                 nexusUI.battLbl.style.color = '#010104';
             } else {
                 nexusUI.battLbl.textContent = 'Standby';
