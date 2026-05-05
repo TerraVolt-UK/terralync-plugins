@@ -1,7 +1,7 @@
 {
   "id": "axle-energy",
   "name": "Axle Energy VPP",
-  "version": "1.1.2",
+  "version": "1.2.7",
   "min_terralync": "1.0.0",
   "author": "TerraLync Team",
   "description": "Virtual Power Plant integration for Axle Energy. Automatically responds to grid events by exporting battery power at full capacity during scheduled events.",
