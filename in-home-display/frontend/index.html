@@ -756,14 +756,14 @@
             const bLayer = document.getElementById('batt-bg-layer');
             const bVal = document.getElementById('val-batt-w');
 
-            if (state.battery < 0) {
+            if (state.battery > 0) {
                 bLabel.innerText = "CHARGING"; 
                 bLabel.className = "text-xs text-amber-500/80 font-medium tracking-widest mt-1";
                 bIcon.className = "ph-fill ph-battery-charging text-amber-500 text-2xl pulse-indicator";
                 bIconBg.className = "p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]";
                 bLayer.style.background = "radial-gradient(circle at top right, rgba(245, 158, 11, 0.05), transparent 60%)";
                 bVal.style.color = "var(--c-solar)";
-            } else if (state.battery > 0) {
+            } else if (state.battery < 0) {
                 bLabel.innerText = "DISCHARGING"; 
                 bLabel.className = "text-xs text-violet-500/80 font-medium tracking-widest mt-1";
                 bIcon.className = "ph-fill ph-battery-warning text-violet-500 text-2xl";
@@ -1121,7 +1121,7 @@
             // Calculate virtual flows
             let s2l = 0, s2b = 0, s2g = 0, b2l = 0, b2g = 0, g2l = 0, g2b = 0;
 
-            // Sign convention from server: batteryW > 0 = discharging, batteryW < 0 = charging
+            // Sign convention from inverter API: positive = charging, negative = discharging
             if (solarW > 0) {
                 // Solar is producing
                 const solarToLoad = Math.min(solarW, loadW);
@@ -1129,9 +1129,9 @@
                 
                 const remainingSolar = solarW - solarToLoad;
                 if (remainingSolar > 0) {
-                    if (batteryW < 0) {
+                    if (batteryW > 0) {
                         // Battery is charging - solar feeds it
-                        s2b = Math.min(remainingSolar, Math.abs(batteryW));
+                        s2b = Math.min(remainingSolar, batteryW);
                         s2g = remainingSolar - s2b;
                     } else {
                         s2g = remainingSolar;
@@ -1140,8 +1140,19 @@
             }
 
             if (batteryW > 0) {
-                // Battery discharging (positive = discharging)
-                const dischargeW = batteryW;
+                // Battery charging (positive = charging)
+                const chargeW = batteryW;
+                
+                // If solar doesn't cover all charging, grid imports to cover
+                const remainingCharge = chargeW - s2b;
+                if (remainingCharge > 0 && gridW < 0) {
+                    g2b = Math.min(remainingCharge, Math.abs(gridW));
+                }
+            }
+
+            if (batteryW < 0) {
+                // Battery discharging (negative = discharging)
+                const dischargeW = Math.abs(batteryW);
                 
                 // If solar doesn't cover load, battery goes to load
                 const remainingLoad = loadW - s2l;
@@ -1166,13 +1177,13 @@
                     g2l = Math.min(importW, remainingLoad);
                 }
                 
-                // If grid is still importing, and battery is charging (negative = charging)
-                const remainingImport = importW - g2l;
-                if (remainingImport > 0 && batteryW < 0) {
+                // If grid is still importing, and battery is charging (positive = charging)
+                const remainingImport = importW - g2l - g2b;
+                if (remainingImport > 0 && batteryW > 0) {
                     // Check if battery charging isn't completely covered by solar
-                    const chargingFromGrid = Math.abs(batteryW) - s2b;
+                    const chargingFromGrid = batteryW - s2b;
                     if (chargingFromGrid > 0) {
-                        g2b = Math.min(remainingImport, chargingFromGrid);
+                        g2b += Math.min(remainingImport, chargingFromGrid);
                     }
                 }
             }
@@ -1254,12 +1265,12 @@
             nexusUI.nodeCore.style.height = `${coreSize * coreScale}px`;
             nexusUI.nodeCore.style.transform = `translate(-50%, -50%) scale(${1 + Math.sin(time/500)*0.03})`;
 
-            // Battery label (positive = discharging, negative = charging)
+            // Battery label (positive = charging, negative = discharging)
             if (nexusDisplay.battery > 50) {
-                nexusUI.battLbl.textContent = 'Discharging';
+                nexusUI.battLbl.textContent = 'Charging';
                 nexusUI.battLbl.style.color = '#010104';
             } else if (nexusDisplay.battery < -50) {
-                nexusUI.battLbl.textContent = 'Charging';
+                nexusUI.battLbl.textContent = 'Discharging';
                 nexusUI.battLbl.style.color = '#010104';
             } else {
                 nexusUI.battLbl.textContent = 'Standby';
