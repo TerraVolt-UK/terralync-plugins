@@ -255,11 +255,11 @@
             text-transform: uppercase;
         }
 
-        .clock-container { text-align: right; }
         .clock {
             font-family: 'JetBrains Mono', monospace;
-            font-size: clamp(14px, 2vw, 16px);
-            color: rgba(255,255,255,0.8);
+            font-size: clamp(18px, 2.5vw, 22px);
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 2px;
         }
 
         .data-point {
@@ -545,14 +545,9 @@
                 <div class="blob node-core" id="node-core"></div>
             </div>
 
-            <div class="ui-layer">
-                <div class="hud-top">
-                    <div class="brand">NEXUS // FLUID</div>
-                    <div class="clock-container">
-                        <div class="clock" id="clock">00:00</div>
-                    </div>
-                </div>
+            <canvas id="sun-arc-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:15;pointer-events:none;"></canvas>
 
+            <div class="ui-layer">
                 <div class="data-point dp-solar">
                     <div class="label" style="color: var(--c-nexus-solar);">Harvesting</div>
                     <div class="value"><span id="nexus-val-solar">0.00</span><span class="unit">kW</span></div>
@@ -572,6 +567,15 @@
                     <div class="core-soc"><span id="nexus-val-soc">0</span>%</div>
                     <div class="value core-kw"><span id="nexus-val-batt">0.00</span><span class="unit">kW</span></div>
                     <div class="core-sub" id="nexus-lbl-batt">Optimizing</div>
+                </div>
+
+                <div id="hud-bottom" style="position:absolute;bottom:clamp(12px,2.5vw,20px);left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;">
+                    <div style="display:flex;align-items:center;gap:16px;font-size:clamp(9px,1.2vw,11px);font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);">
+                        <span id="sunrise-label" style="display:flex;align-items:center;gap:4px;"><span style="font-size:1.3em;">🌅</span><span id="sunrise-time">--:--</span></span>
+                        <span style="opacity:0.3;">·</span>
+                        <span id="sunset-label" style="display:flex;align-items:center;gap:4px;"><span id="sunset-time">--:--</span><span style="font-size:1.3em;">🌇</span></span>
+                    </div>
+                    <div class="clock" id="clock">00:00</div>
                 </div>
             </div>
 
@@ -752,14 +756,14 @@
             const bLayer = document.getElementById('batt-bg-layer');
             const bVal = document.getElementById('val-batt-w');
 
-            if (state.battery > 0) {
+            if (state.battery < 0) {
                 bLabel.innerText = "CHARGING"; 
                 bLabel.className = "text-xs text-amber-500/80 font-medium tracking-widest mt-1";
                 bIcon.className = "ph-fill ph-battery-charging text-amber-500 text-2xl pulse-indicator";
                 bIconBg.className = "p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]";
                 bLayer.style.background = "radial-gradient(circle at top right, rgba(245, 158, 11, 0.05), transparent 60%)";
                 bVal.style.color = "var(--c-solar)";
-            } else if (state.battery < 0) {
+            } else if (state.battery > 0) {
                 bLabel.innerText = "DISCHARGING"; 
                 bLabel.className = "text-xs text-violet-500/80 font-medium tracking-widest mt-1";
                 bIcon.className = "ph-fill ph-battery-warning text-violet-500 text-2xl";
@@ -841,6 +845,151 @@
             
             document.getElementById(`path-${type}-fill`).setAttribute('d', dFill);
             document.getElementById(`path-${type}-line`).setAttribute('d', dLine);
+        }
+
+        // ========== SUN ARC STATE ==========
+        const sunArc = {
+            sunriseUTC: null,   // Date object
+            sunsetUTC: null,    // Date object
+            sunriseFmt: '--:--',
+            sunsetFmt: '--:--',
+            fetched: false
+        };
+
+        function fmtLocalTime(dateObj) {
+            return dateObj.getHours().toString().padStart(2,'0') + ':' + dateObj.getMinutes().toString().padStart(2,'0');
+        }
+
+        async function fetchSunTimes() {
+            try {
+                // Get approximate lat/lng from IP
+                const geo = await fetch('https://ipapi.co/json/').then(r => r.json());
+                const lat = geo.latitude || 51.5;
+                const lng = geo.longitude || -0.1;
+
+                const today = new Date().toISOString().slice(0,10);
+                const sun = await fetch(
+                    `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&date=${today}&formatted=0`
+                ).then(r => r.json());
+
+                if (sun.status === 'OK') {
+                    sunArc.sunriseUTC = new Date(sun.results.sunrise);
+                    sunArc.sunsetUTC  = new Date(sun.results.sunset);
+                    sunArc.sunriseFmt = fmtLocalTime(sunArc.sunriseUTC);
+                    sunArc.sunsetFmt  = fmtLocalTime(sunArc.sunsetUTC);
+                    sunArc.fetched = true;
+
+                    const srEl = document.getElementById('sunrise-time');
+                    const ssEl = document.getElementById('sunset-time');
+                    if (srEl) srEl.textContent = sunArc.sunriseFmt;
+                    if (ssEl) ssEl.textContent = sunArc.sunsetFmt;
+                }
+            } catch(e) {
+                // Graceful fallback — sun arc will not render if fetch fails
+            }
+        }
+
+        function getSunProgress() {
+            if (!sunArc.fetched) return -1;
+            const now = Date.now();
+            const rise = sunArc.sunriseUTC.getTime();
+            const set  = sunArc.sunsetUTC.getTime();
+            if (now < rise || now > set) return -1; // night
+            return (now - rise) / (set - rise); // 0=sunrise, 1=sunset
+        }
+
+        function drawSunArc(canvas) {
+            const W = canvas.offsetWidth;
+            const H = canvas.offsetHeight;
+            if (W === 0 || H === 0) return;
+            canvas.width  = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, W, H);
+
+            const progress = getSunProgress();
+
+            // Arc path: arc from left edge (sunrise) to right edge (sunset)
+            // The arc goes from bottom-left, up and over the top, down to bottom-right
+            // but needs to arc AROUND the central battery blob (50%, 52%)
+            // We use a parametric path: a semi-ellipse whose peak is above the blob
+
+            // Anchor points
+            const startX = W * 0.05;   // sunrise left
+            const startY = H * 0.82;   // sunrise Y (near bottom)
+            const endX   = W * 0.95;   // sunset right
+            const endY   = H * 0.82;   // sunset Y
+
+            // Apex of arc: top-centre, well above the solar blob at y=10%
+            const apexX  = W * 0.50;
+            const apexY  = H * 0.06;
+
+            // Cubic bezier control points for smooth arc that hugs above blob
+            const cp1x = W * 0.15;
+            const cp1y = H * 0.05;
+            const cp2x = W * 0.85;
+            const cp2y = H * 0.05;
+
+            // Draw dim arc trail
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
+            ctx.strokeStyle = 'rgba(255, 232, 115, 0.12)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 8]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            if (progress < 0) return; // night — only trail shown
+
+            // Sun blob position along bezier
+            const t = progress;
+            const mt = 1 - t;
+            const sunX = mt*mt*mt*startX + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*endX;
+            const sunY = mt*mt*mt*startY + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*endY;
+
+            // Draw completed arc in brighter colour up to sun position
+            // Sample bezier at multiple t values up to progress
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            for (let i = 1; i <= 60; i++) {
+                const ti = (i / 60) * t;
+                const mti = 1 - ti;
+                const xi = mti*mti*mti*startX + 3*mti*mti*ti*cp1x + 3*mti*ti*ti*cp2x + ti*ti*ti*endX;
+                const yi = mti*mti*mti*startY + 3*mti*mti*ti*cp1y + 3*mti*ti*ti*cp2y + ti*ti*ti*endY;
+                ctx.lineTo(xi, yi);
+            }
+            ctx.strokeStyle = 'rgba(255, 232, 115, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Elevation factor: how high sun is (0=horizon, 1=apex)
+            // Approximate by how close t is to 0.5
+            const elev = 1 - Math.abs(t - 0.5) * 2;
+
+            // Sun blob glow (larger and brighter near noon)
+            const blobR = 18 + elev * 14;
+            const glowR = blobR * 3.5;
+
+            const grd = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, glowR);
+            grd.addColorStop(0,   'rgba(255, 248, 180, 0.95)');
+            grd.addColorStop(0.25,'rgba(255, 220, 60,  0.7)');
+            grd.addColorStop(0.6, 'rgba(255, 160, 20,  0.25)');
+            grd.addColorStop(1,   'rgba(255, 120, 0,   0)');
+
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, glowR, 0, Math.PI*2);
+            ctx.fillStyle = grd;
+            ctx.fill();
+
+            // Core sun disc
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, blobR, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(255, 245, 160, ${0.85 + elev*0.15})`;
+            ctx.shadowColor = '#FFE860';
+            ctx.shadowBlur = 30 + elev * 20;
+            ctx.fill();
+            ctx.shadowBlur = 0;
         }
 
         // ========== NEXUS FLUID VIEW ==========
@@ -938,6 +1087,7 @@
             nexusUI.nodeGrid = document.getElementById('node-grid');
             nexusUI.nodeCore = document.getElementById('node-core');
             nexusUI.clock = document.getElementById('clock');
+            nexusUI.sunCanvas = document.getElementById('sun-arc-canvas');
 
             // Initialize particle pool
             droplets = new ParticlePool(60);
@@ -947,6 +1097,10 @@
                 const now = new Date();
                 nexusUI.clock.textContent = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
             }, 1000);
+
+            // Fetch sunrise/sunset times (refreshed daily)
+            fetchSunTimes();
+            setInterval(fetchSunTimes, 6 * 60 * 60 * 1000); // re-fetch every 6h
 
             // Start animation loop
             nexusLastTime = performance.now();
@@ -967,6 +1121,7 @@
             // Calculate virtual flows
             let s2l = 0, s2b = 0, s2g = 0, b2l = 0, b2g = 0, g2l = 0, g2b = 0;
 
+            // Sign convention from server: batteryW > 0 = discharging, batteryW < 0 = charging
             if (solarW > 0) {
                 // Solar is producing
                 const solarToLoad = Math.min(solarW, loadW);
@@ -974,8 +1129,9 @@
                 
                 const remainingSolar = solarW - solarToLoad;
                 if (remainingSolar > 0) {
-                    if (batteryW > 0) {
-                        s2b = Math.min(remainingSolar, batteryW);
+                    if (batteryW < 0) {
+                        // Battery is charging - solar feeds it
+                        s2b = Math.min(remainingSolar, Math.abs(batteryW));
                         s2g = remainingSolar - s2b;
                     } else {
                         s2g = remainingSolar;
@@ -983,9 +1139,9 @@
                 }
             }
 
-            if (batteryW < 0) {
-                // Battery discharging
-                const dischargeW = Math.abs(batteryW);
+            if (batteryW > 0) {
+                // Battery discharging (positive = discharging)
+                const dischargeW = batteryW;
                 
                 // If solar doesn't cover load, battery goes to load
                 const remainingLoad = loadW - s2l;
@@ -1010,11 +1166,11 @@
                     g2l = Math.min(importW, remainingLoad);
                 }
                 
-                // If grid is still importing, and battery is charging
+                // If grid is still importing, and battery is charging (negative = charging)
                 const remainingImport = importW - g2l;
-                if (remainingImport > 0 && batteryW > 0) {
+                if (remainingImport > 0 && batteryW < 0) {
                     // Check if battery charging isn't completely covered by solar
-                    const chargingFromGrid = batteryW - s2b;
+                    const chargingFromGrid = Math.abs(batteryW) - s2b;
                     if (chargingFromGrid > 0) {
                         g2b = Math.min(remainingImport, chargingFromGrid);
                     }
@@ -1098,12 +1254,12 @@
             nexusUI.nodeCore.style.height = `${coreSize * coreScale}px`;
             nexusUI.nodeCore.style.transform = `translate(-50%, -50%) scale(${1 + Math.sin(time/500)*0.03})`;
 
-            // Battery label
+            // Battery label (positive = discharging, negative = charging)
             if (nexusDisplay.battery > 50) {
-                nexusUI.battLbl.textContent = 'Charging';
+                nexusUI.battLbl.textContent = 'Discharging';
                 nexusUI.battLbl.style.color = '#010104';
             } else if (nexusDisplay.battery < -50) {
-                nexusUI.battLbl.textContent = 'Discharging';
+                nexusUI.battLbl.textContent = 'Charging';
                 nexusUI.battLbl.style.color = '#010104';
             } else {
                 nexusUI.battLbl.textContent = 'Standby';
@@ -1139,6 +1295,9 @@
 
             // Update droplets
             droplets.update(delta);
+
+            // Draw sun arc overlay
+            if (nexusUI.sunCanvas) drawSunArc(nexusUI.sunCanvas);
 
             requestAnimationFrame(nexusRenderFrame);
         }
