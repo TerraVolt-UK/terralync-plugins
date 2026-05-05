@@ -3,7 +3,8 @@ name: Release Plugins
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'           # legacy global tags e.g. v1.2.7
+      - '*/v*'         # per-plugin tags e.g. axle-energy/v1.1.2
 
 permissions:
   contents: write
@@ -20,9 +21,19 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Get tag version
+      - name: Get tag version and plugin hint
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          # Support per-plugin tags: axle-energy/v1.1.2 → plugin=axle-energy, version=1.1.2
+          # Also support legacy global tags: v1.2.7 → plugin=(detected by version match), version=1.2.7
+          if [[ "$TAG_NAME" == *"/v"* ]]; then
+            echo "plugin_hint=${TAG_NAME%%/v*}" >> $GITHUB_OUTPUT
+            echo "version=${TAG_NAME#*/v}" >> $GITHUB_OUTPUT
+          else
+            echo "plugin_hint=" >> $GITHUB_OUTPUT
+            echo "version=${TAG_NAME#v}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build per-plugin archives and update registry
         id: build
@@ -45,16 +56,23 @@ jobs:
 
           echo "Found plugins:${PLUGIN_IDS}"
 
-          # Determine which plugin is being released by checking plugin.json versions
+          # Determine which plugin is being released
+          # Prefer per-plugin tag hint (e.g. axle-energy/v1.1.2), fall back to version matching
+          PLUGIN_HINT="${{ steps.version.outputs.plugin_hint }}"
           RELEASED_PLUGIN=""
-          for plugin_id in $PLUGIN_IDS; do
-            plugin_version=$(jq -r '.version' "${plugin_id}/plugin.json" 2>/dev/null || echo "")
-            if [ "$plugin_version" = "$VERSION" ]; then
-              RELEASED_PLUGIN="${plugin_id}"
-              echo "Identified release plugin: ${plugin_id} at version ${plugin_version}"
-              break
-            fi
-          done
+          if [ -n "$PLUGIN_HINT" ] && [ -f "${PLUGIN_HINT}/plugin.json" ]; then
+            RELEASED_PLUGIN="${PLUGIN_HINT}"
+            echo "Identified release plugin from tag: ${RELEASED_PLUGIN}"
+          else
+            for plugin_id in $PLUGIN_IDS; do
+              plugin_version=$(jq -r '.version' "${plugin_id}/plugin.json" 2>/dev/null || echo "")
+              if [ "$plugin_version" = "$VERSION" ]; then
+                RELEASED_PLUGIN="${plugin_id}"
+                echo "Identified release plugin by version match: ${plugin_id} at version ${plugin_version}"
+                break
+              fi
+            done
+          fi
 
           if [ -z "$RELEASED_PLUGIN" ]; then
             echo "ERROR: No plugin found with version ${VERSION} in plugin.json"
