@@ -7,7 +7,7 @@
       "description": "Real-time in-home display for TerraLync showing solar, battery, and grid power. Features dual display modes (Bento Grid and NEXUS Fluid) selectable via plugin settings.",
       "author": "TerraLync Team",
       "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/v1.2.1/in-home-display-1.2.1.tar.gz",
-      "checksum_sha256": ""
+      "checksum_sha256": "7b0e7f42b9d53ba6723d518a4d776c8f3c92b48f931411ddf5ee1170d46169fb"
     },
     {
       "id": "axle-energy",
