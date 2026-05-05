@@ -139,6 +139,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stash the updated registry, pull latest main, then re-apply
+          cp registry.json /tmp/registry-updated.json
+          git fetch origin main
+          git checkout origin/main -- registry.json
+          cp /tmp/registry-updated.json registry.json
           git add registry.json
           git diff --staged --quiet || git commit -m "chore: update registry.json for ${{ github.ref_name }}"
           git push origin HEAD:main
