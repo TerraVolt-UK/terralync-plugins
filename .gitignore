@@ -37,7 +37,10 @@ env/
 .DS_Store
 Thumbs.db
 
-# Plugin runtime files (per-plugin)
+# Plugin data safe zone (preserved across updates, never committed)
+data/
+
+# Legacy runtime files at plugin root (now live in data/)
 logs/
 *.log
 plugin_state.json
