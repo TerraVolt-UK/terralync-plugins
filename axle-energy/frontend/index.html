@@ -298,16 +298,9 @@
             return `${Math.floor(diff / 86400)} days ago`;
         }
         
-        // Fetch plugin data from events.json endpoint
-        // Since plugins can't add API endpoints, we'll use a workaround
-        // The plugin stores events.json in its data directory
-        // We'll fetch it via a relative path to the plugin's static files
         async function fetchEventHistory() {
             try {
-                // The events.json is in the plugin data directory
-                // We need to access it via a custom endpoint or check if plugin provides it
-                // For now, return empty until we implement the data endpoint
-                const response = await fetch('../events.json');
+                const response = await fetch('/api/plugins/axle-energy/data/events.json');
                 if (response.ok) {
                     return await response.json();
                 }
@@ -319,7 +312,7 @@
         
         async function fetchPluginState() {
             try {
-                const response = await fetch('../plugin_state.json');
+                const response = await fetch('/api/plugins/axle-energy/data/plugin_state.json');
                 if (response.ok) {
                     return await response.json();
                 }

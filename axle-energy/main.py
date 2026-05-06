@@ -61,7 +61,7 @@ class AxlePlugin:
     
     def _load_settings(self):
         """Load plugin settings from settings.json."""
-        settings_path = os.path.join(self.plugin_dir, "settings.json")
+        settings_path = os.path.join(self.data_dir, "settings.json")
         try:
             with open(settings_path, "r") as f:
                 self.settings = json.load(f)
