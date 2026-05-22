@@ -312,7 +312,7 @@
         
         async function fetchPluginState() {
             try {
-                const response = await fetch('/api/plugins/axle-energy/data/plugin_state.json');
+                const response = await fetch('/api/plugins/axle-energy/data/axle_state.json');
                 if (response.ok) {
                     return await response.json();
                 }
@@ -445,8 +445,11 @@
                 // Update status indicators
                 if (state) {
                     document.getElementById('lastPollTime').textContent = 
-                        state.last_saved ? formatRelativeTime(state.last_saved) : '--';
+                        state.last_poll_time ? formatRelativeTime(state.last_poll_time) : '--';
                     
+                    document.getElementById('nextPollTime').textContent =
+                        state.next_poll_time ? formatRelativeTime(state.next_poll_time) : '--';
+
                     renderCurrentEvent(state.current_event, state.event_active);
                 }
                 

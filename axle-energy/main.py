@@ -32,7 +32,7 @@ AXLE_API_BASE = "https://api.axle.energy/vpp/home-assistant/event"
 
 # Local file paths (relative to plugin data dir)
 EVENTS_FILE = "events.json"
-STATE_FILE = "plugin_state.json"
+STATE_FILE = "axle_state.json"
 
 
 class AxlePlugin:
@@ -56,16 +56,18 @@ class AxlePlugin:
         # Ensure data directory exists
         os.makedirs(self.data_dir, exist_ok=True)
         
-        self._load_settings()
         self._load_state()
     
     def _load_settings(self):
-        """Load plugin settings from settings.json."""
+        """Load plugin settings from settings.json (called before every poll)."""
         settings_path = os.path.join(self.data_dir, "settings.json")
         try:
             with open(settings_path, "r") as f:
                 self.settings = json.load(f)
-            logger.info("Settings loaded successfully")
+            logger.debug("Settings reloaded")
+        except FileNotFoundError:
+            logger.warning("No settings.json found — configure the plugin via the TerraLync dashboard")
+            self.settings = {}
         except Exception as e:
             logger.warning(f"Could not load settings: {e}")
             self.settings = {}
@@ -83,13 +85,21 @@ class AxlePlugin:
             logger.warning(f"Could not load state: {e}")
     
     def _save_state(self):
-        """Save persistent plugin state."""
+        """Save persistent plugin state (also used by frontend for status display)."""
         state_path = os.path.join(self.data_dir, STATE_FILE)
         try:
+            now_iso = datetime.utcnow().isoformat() + "Z"
+            next_poll_iso = None
+            if self.last_poll_time:
+                next_dt = self.last_poll_time + timedelta(seconds=self.next_poll_interval)
+                next_poll_iso = next_dt.isoformat() + "Z"
             state = {
                 "current_event": self.current_event,
                 "event_active": self.event_active,
-                "last_saved": datetime.utcnow().isoformat() + "Z"
+                "last_poll_time": self.last_poll_time.isoformat() + "Z" if self.last_poll_time else None,
+                "next_poll_time": next_poll_iso,
+                "next_poll_interval_seconds": self.next_poll_interval,
+                "last_saved": now_iso,
             }
             with open(state_path, "w") as f:
                 json.dump(state, f, indent=2)
@@ -194,13 +204,17 @@ class AxlePlugin:
     
     def _calculate_poll_interval(self, event: Optional[Dict]) -> int:
         """Calculate appropriate polling interval based on event timing."""
+        # Convert to int in case settings are stored as strings
+        normal_interval = int(self.settings.get("poll_interval_normal", 15)) * 60
+        fast_interval = int(self.settings.get("poll_interval_fast", 90))
+
         if not event:
             # No event - use normal interval
-            return self.settings.get("poll_interval_normal", 15) * 60
-        
+            return normal_interval
+
         start, end = self._parse_event_times(event)
         if not start or not end:
-            return self.settings.get("poll_interval_normal", 15) * 60
+            return normal_interval
         
         now = datetime.utcnow()
         fast_window_hours = self.settings.get("fast_poll_window", 1)
@@ -213,9 +227,9 @@ class AxlePlugin:
         
         # Fast polling: within fast window of buffered start or during buffered event period
         if fast_before_start <= now <= buffered_end:
-            return self.settings.get("poll_interval_fast", 90)
-        
-        return self.settings.get("poll_interval_normal", 15) * 60
+            return fast_interval
+
+        return normal_interval
     
     async def _get_all_inverters(self) -> List[str]:
         """Get list of all connected inverter serial numbers."""
@@ -277,12 +291,44 @@ class AxlePlugin:
         if success_count == len(serials):
             logger.info(f"Export triggered successfully on all {len(serials)} inverter(s)")
             return True
-        elif success_count > 0:
-            logger.warning(f"Export triggered on {success_count}/{len(serials)} inverters")
-            return True  # Partial success still means we're exporting
         else:
-            logger.error("Failed to trigger export on any inverter")
-            return False
+            logger.error(f"Failed to trigger export on {len(serials) - success_count}/{len(serials)} inverters — all must succeed for grid event")
+            return False  # Partial success is NOT acceptable during grid events
+    
+    async def _check_and_handle_event_extension(self, new_event: Dict):
+        """Check if event end time was extended and re-trigger with updated duration.
+        
+        Axle may extend events while they're active. We need to detect this and
+        re-trigger discharge_now with the new auto_resume_minutes so the inverter
+        doesn't resume early.
+        """
+        if not self.current_event:
+            return
+        
+        old_start, old_end = self._parse_event_times(self.current_event)
+        new_start, new_end = self._parse_event_times(new_event)
+        
+        if not old_end or not new_end:
+            return
+        
+        # Check if end time was extended
+        if new_end > old_end:
+            old_duration = self._calculate_event_duration_minutes(self.current_event)
+            new_duration = self._calculate_event_duration_minutes(new_event)
+            
+            logger.info(f"Event extended: end time moved from {old_end} to {new_end}")
+            logger.info(f"Duration changed from {old_duration} to {new_duration} minutes - re-triggering export")
+            
+            # Re-trigger export with updated duration
+            # This cancels the old auto-resume timer and sets a new one
+            success = await self._trigger_export_on_all_inverters(new_event)
+            
+            if success:
+                logger.info("Export re-triggered successfully with extended duration")
+                self.current_event = new_event  # Update stored event
+                self._save_state()
+            else:
+                logger.error("Failed to re-trigger export for extended event - will retry on next poll")
     
     async def _resume_all_inverters(self) -> bool:
         """Resume normal operation on all inverters immediately."""
@@ -344,12 +390,15 @@ class AxlePlugin:
     
     async def _check_and_handle_event(self):
         """Main polling logic - check for events and handle with quick settings."""
+        # Reload settings on every poll so live changes take effect without restart
+        self._load_settings()
+
         if not self.settings.get("enabled"):
-            logger.debug("Plugin disabled, skipping poll")
+            logger.warning("Plugin is disabled — enable it via TerraLync Dashboard → Plugins → Axle Energy VPP → Settings")
             return
         
         if not self.settings.get("api_key"):
-            logger.warning("No API key configured, skipping poll")
+            logger.warning("No API key configured — add your Axle API key via TerraLync Dashboard → Plugins → Axle Energy VPP → Settings")
             return
         
         logger.debug("Polling Axle API for events...")
@@ -391,9 +440,8 @@ class AxlePlugin:
                         
                         self._save_state()
                     else:
-                        # Event still active within buffer, check if we need to extend
-                        # (in case event end time was extended)
-                        pass
+                        # Event already active - check if end time was extended
+                        await self._check_and_handle_event_extension(event)
                 else:
                     # Event is upcoming (before buffer period)
                     if now < buffered_start:
@@ -414,7 +462,7 @@ class AxlePlugin:
                         self.current_event = None
                         self._save_state()
         else:
-            logger.debug("No active or upcoming events")
+            logger.info("Axle API polled — no active or upcoming events")
             
             # Check if we need to clean up from a previous event
             if self.event_active:
@@ -429,12 +477,18 @@ class AxlePlugin:
                     self._log_event(self.current_event, "ended")
                 
                 self.current_event = None
-                self._save_state()
+
+        # Always save state after a successful poll so the frontend shows
+        # current last_poll_time / next_poll_time regardless of event activity
+        self._save_state()
     
     async def run(self):
         """Main plugin loop."""
         self.running = True
         logger.info("Axle Energy VPP plugin started (Quick Settings mode)")
+        logger.info(f"Axle API endpoint: {AXLE_API_BASE}")
+        logger.info(f"TerraLync API base: {self.api_base}")
+        logger.info(f"Data directory: {self.data_dir}")
         
         while self.running:
             try:
@@ -443,7 +497,7 @@ class AxlePlugin:
                 logger.error(f"Error in main loop: {e}")
             
             # Wait for next poll
-            logger.debug(f"Next poll in {self.next_poll_interval} seconds")
+            logger.info(f"Next poll in {self.next_poll_interval} seconds")
             await asyncio.sleep(self.next_poll_interval)
     
     async def stop(self):
