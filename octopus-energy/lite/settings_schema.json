@@ -33,14 +33,36 @@
       "type": "enum",
       "title": "Tariff Mode",
       "description": "How to determine your tariff - auto-detect or manual override",
-      "enum": ["auto", "intelligent_go", "agile", "fixed_offpeak", "standard_variable"],
+      "enum": [
+        "auto",
+        "intelligent_go",
+        "agile",
+        "fixed_offpeak",
+        "standard_variable"
+      ],
       "default": "auto"
     },
     "region_code": {
       "type": "enum",
       "title": "Region Code (optional)",
       "description": "Your DNO region code. Leave blank for auto-detect.",
-      "enum": ["", "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P"],
+      "enum": [
+        "",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "P"
+      ],
       "default": ""
     },
     "intelligent_go_start": {
@@ -92,8 +114,8 @@
     "saving_sessions_enabled": {
       "type": "boolean",
       "title": "Participate in Saving Sessions",
-      "description": "Automatically export battery power during Octopus Saving Sessions",
-      "default": true
+      "description": "Automatically export battery power during Octopus Saving Sessions [disabled: schema pending \u2014 Octopus moved SS events off octoplusAccountInfo]",
+      "default": false
     },
     "saving_session_min_soc": {
       "type": "integer",
@@ -139,7 +161,10 @@
       "type": "enum",
       "title": "Intelligent Dispatch Mode",
       "description": "Which dispatch types count as cheap rate periods",
-      "enum": ["planned_and_started", "started_only"],
+      "enum": [
+        "planned_and_started",
+        "started_only"
+      ],
       "default": "planned_and_started"
     },
     "enable_export_tariff": {

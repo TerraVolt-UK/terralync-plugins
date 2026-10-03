@@ -65,6 +65,15 @@ async def run(ctx):
                 await ctx.sleep_ms(_TICK_S * 1000)
                 continue
 
+            # Discovery ran but found no agreement — usually means the
+            # RTC was pre-NTP at boot. Re-discover in 2 min.
+            if st.get("detected_mode") == "standard_variable" and \
+                    not st.get("tariff_code"):
+                st["discovered"] = False
+                st["discover_next"] = now + 120
+                await ctx.sleep_ms(_TICK_S * 1000)
+                continue
+
             mode = _mode(st, settings)
             ctx.set_status("running", mode)
 

@@ -11,7 +11,7 @@ _OE_GQL = "https://api.octopus.energy/v1/graphql/"
 DAYS = ["monday", "tuesday", "wednesday", "thursday",
         "friday", "saturday", "sunday"]
 
-_TARIFF_INTELLIGENT = ("INTELLI",)
+_TARIFF_INTELLIGENT = ("INTELLI", "IOG")
 _TARIFF_AGILE = ("AGILE",)
 _TARIFF_GO = ("GO", "E-1R-GO")
 
