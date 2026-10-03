@@ -16,7 +16,11 @@
       "description": "Virtual Power Plant integration for Axle Energy - automatic battery export during grid events",
       "author": "TerraLync Team",
       "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.0/axle-energy-1.3.0.tar.gz",
-      "checksum_sha256": "f5017a23b975905d1572ffbbb02fd275cc8429765dc1e45937b3332cf0faf5ac"
+      "checksum_sha256": "f5017a23b975905d1572ffbbb02fd275cc8429765dc1e45937b3332cf0faf5ac",
+      "lite": {
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.0/axle-energy-lite-1.3.0.tar.gz",
+        "checksum_sha256": ""
+      }
     },
     {
       "id": "octopus-energy",
@@ -25,7 +29,24 @@
       "description": "Links your Octopus Energy account to TerraLync for tariff-aware battery scheduling. Supports Intelligent Go, Agile, and Saving Session participation.",
       "author": "TerraLync Team",
       "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/v1.0.0/octopus-energy-1.0.0.tar.gz",
-      "checksum_sha256": ""
+      "checksum_sha256": "",
+      "lite": {
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/octopus-energy/v1.0.0/octopus-energy-lite-1.0.0.tar.gz",
+        "checksum_sha256": ""
+      }
+    },
+    {
+      "id": "engineering-mode",
+      "name": "Engineering Mode",
+      "version": "1.0.0",
+      "description": "Enables engineering-level inverter configuration commands. WARNING: Incorrect use can void warranty, damage equipment, or violate grid regulations.",
+      "author": "TerraLync Team",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/engineering-mode/v1.0.0/engineering-mode-1.0.0.tar.gz",
+      "checksum_sha256": "",
+      "lite": {
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/engineering-mode/v1.0.0/engineering-mode-lite-1.0.0.tar.gz",
+        "checksum_sha256": ""
+      }
     }
   ]
 }
