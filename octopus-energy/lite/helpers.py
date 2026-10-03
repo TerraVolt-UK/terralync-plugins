@@ -33,6 +33,12 @@ _DISPATCH_PREFIX = "intelli_dispatch_"
 #  runs of this source are TZ-deterministic too)
 # ---------------------------------------------------------------------------
 
+# MicroPython time.time() counts from 2000-01-01, not the Unix epoch —
+# parsed ISO timestamps must be shifted into the same base or every
+# comparison (agreements, dispatch windows) silently fails on device.
+_EPOCH_OFFSET = 946684800 if time.gmtime(0)[0] == 2000 else 0
+
+
 def _days_from_civil(y, m, d):
     y -= m <= 2
     era = y // 400 if y >= 0 else (y - 399) // 400
@@ -69,7 +75,8 @@ def _parse_iso(s):
         tparts = tpart.split(":")
         sec = int(float(tparts[2])) if len(tparts) > 2 else 0
         return (_days_from_civil(int(y), int(mo), int(d)) * 86400 +
-                int(tparts[0]) * 3600 + int(tparts[1]) * 60 + sec - tz_off)
+                int(tparts[0]) * 3600 + int(tparts[1]) * 60 + sec
+                - tz_off - _EPOCH_OFFSET)
     except Exception:
         return None
 
@@ -87,9 +94,9 @@ def _uk_dst(epoch):
 
     def _last_sunday(y, m):
         for d in range(31, 20, -1):
-            lt = time.gmtime(_days_from_civil(y, m, d) * 86400 + 43200)
-            if lt[6] == 6:
-                return _days_from_civil(y, m, d) * 86400 + 43200
+            e = _days_from_civil(y, m, d) * 86400 + 43200 - _EPOCH_OFFSET
+            if time.gmtime(e)[6] == 6:
+                return e
         return 0
 
     return 3600 if _last_sunday(year, 3) <= epoch < \
@@ -112,7 +119,8 @@ def _local_midnight(epoch):
     """UTC epoch of local midnight containing epoch (for day windows)."""
     dst = _uk_dst(epoch)
     t = time.gmtime(int(epoch) + dst)
-    return _days_from_civil(t[0], t[1], t[2]) * 86400 - dst
+    return (_days_from_civil(t[0], t[1], t[2]) * 86400
+            - _EPOCH_OFFSET - dst)
 
 
 def _b64(s):
@@ -143,10 +151,13 @@ def _product_from_tariff(tariff_code):
     return ""
 
 
+# MPAN distributor ID (first 2 digits) → GSP group letter. Codes are
+# NOT sequential with letters: Scotland sits at 17/18 and Yorkshire
+# is 23. Tariff-code suffix overrides this (see _discover).
 _REGION_FROM_MPAN = {"10": "A", "11": "B", "12": "C", "13": "D",
-                     "14": "E", "15": "F", "16": "G", "17": "H",
-                     "18": "J", "19": "K", "20": "L", "21": "M",
-                     "22": "N", "23": "P"}
+                     "14": "E", "15": "F", "16": "G", "17": "P",
+                     "18": "N", "19": "J", "20": "H", "21": "K",
+                     "22": "L", "23": "M"}
 
 
 def _classify(tariff_code):

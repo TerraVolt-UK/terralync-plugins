@@ -136,6 +136,12 @@ async def _discover(ctx, st, settings):
         if vf and vf <= now and (vt is None or vt > now):
             st["tariff_code"] = ag.get("tariff_code", "")
             st["detected_mode"] = _classify(st["tariff_code"])
+            # The tariff code's own region suffix is authoritative —
+            # MPAN-digit maps can't cover every product line.
+            if not settings.get("region_code"):
+                parts = st["tariff_code"].split("-")
+                if len(parts[-1]) == 1:
+                    st["region_code"] = parts[-1]
             break
     else:
         st["detected_mode"] = "standard_variable"
