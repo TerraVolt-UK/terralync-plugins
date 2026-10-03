@@ -46,6 +46,12 @@ def _days_from_civil(y, m, d):
     return era * 146097 + doe - 719468
 
 
+# MicroPython time.time() counts from 2000-01-01, not the Unix epoch —
+# parsed ISO timestamps must be shifted into the same base or event
+# windows never match time.time() on device.
+_EPOCH_OFFSET = 946684800 if time.gmtime(0)[0] == 2000 else 0
+
+
 def _parse_iso(s):
     """ISO 8601 ``YYYY-MM-DDTHH:MM:SS[Z|+HH:MM|-HH:MM]`` → epoch (UTC).
 
@@ -79,7 +85,7 @@ def _parse_iso(s):
         sec = int(float(tparts[2])) if len(tparts) > 2 else 0
         return (_days_from_civil(int(y), int(mo), int(d)) * 86400 +
                 int(tparts[0]) * 3600 + int(tparts[1]) * 60 +
-                sec - tz_off)
+                sec - tz_off - _EPOCH_OFFSET)
     except Exception:
         return None
 
