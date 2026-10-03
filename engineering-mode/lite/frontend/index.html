@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Engineering Mode</title>
+<style>
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif;
+         background:#0f172a; color:#e2e8f0; padding:24px; }
+  .card { background:rgba(30,41,59,.7); border:1px solid #334155;
+          border-radius:12px; padding:20px; max-width:560px; }
+  h1 { font-size:18px; margin:0 0 8px; color:#f87171; }
+  p { font-size:14px; color:#94a3b8; line-height:1.5; }
+  code { background:#1e293b; padding:1px 6px; border-radius:4px;
+         color:#fbbf24; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>⚠️ Engineering Mode</h1>
+    <p>This plugin enables raw register writes behind an unlock code.
+       Commands run through the dashboard's
+       <b>Configuration → Engineering</b> tab.</p>
+    <p>Every write is allowlisted, bounds-checked, verified over Modbus,
+       and recorded in the plugin audit log. Incorrect use can void
+       warranty, damage equipment, or violate grid regulations.</p>
+    <p>Set a custom unlock code in this plugin's <b>Settings</b>
+       (default: <code>ENGINEERING_MODE_UNLOCK</code>).</p>
+  </div>
+</body>
+</html>

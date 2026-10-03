@@ -1,0 +1,159 @@
+{
+  "title": "Octopus Energy Configuration",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "title": "Enable Octopus Energy Integration",
+      "description": "Turn on automatic scheduling based on your Octopus tariff",
+      "default": false
+    },
+    "api_key": {
+      "type": "password",
+      "title": "Octopus API Key",
+      "description": "Your Octopus Energy API key (found in your online account dashboard)",
+      "default": "",
+      "maxLength": 128
+    },
+    "account_number": {
+      "type": "string",
+      "title": "Account Number",
+      "description": "Your Octopus Energy account number (e.g., A-1234ABCD)",
+      "default": "",
+      "maxLength": 32
+    },
+    "mpan": {
+      "type": "string",
+      "title": "MPAN (optional)",
+      "description": "Specific electricity MPAN if you have multiple meters. Leave blank to auto-detect.",
+      "default": "",
+      "maxLength": 21
+    },
+    "tariff_mode": {
+      "type": "enum",
+      "title": "Tariff Mode",
+      "description": "How to determine your tariff - auto-detect or manual override",
+      "enum": ["auto", "intelligent_go", "agile", "fixed_offpeak", "standard_variable"],
+      "default": "auto"
+    },
+    "region_code": {
+      "type": "enum",
+      "title": "Region Code (optional)",
+      "description": "Your DNO region code. Leave blank for auto-detect.",
+      "enum": ["", "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P"],
+      "default": ""
+    },
+    "intelligent_go_start": {
+      "type": "string",
+      "title": "Intelligent Go Cheap Rate Start",
+      "description": "Start of the cheap rate window (default 23:30)",
+      "default": "23:30",
+      "maxLength": 5
+    },
+    "intelligent_go_end": {
+      "type": "string",
+      "title": "Intelligent Go Cheap Rate End",
+      "description": "End of the cheap rate window (default 05:30)",
+      "default": "05:30",
+      "maxLength": 5
+    },
+    "agile_cheap_slots": {
+      "type": "integer",
+      "title": "Agile: Cheap Half-Hours to Charge",
+      "description": "How many cheapest half-hour slots to charge during (8 = 4 hours)",
+      "minimum": 1,
+      "maximum": 24,
+      "default": 8
+    },
+    "agile_max_price_pence": {
+      "type": "number",
+      "title": "Agile: Maximum Price to Charge (p/kWh)",
+      "description": "Only charge when price is below this threshold. 0 disables.",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 15.0
+    },
+    "charge_power_steps": {
+      "type": "integer",
+      "title": "Charge Power Level (0-50)",
+      "description": "Maximum charge power during cheap rate periods (50 = maximum)",
+      "minimum": 0,
+      "maximum": 50,
+      "default": 50
+    },
+    "charge_target_soc": {
+      "type": "integer",
+      "title": "Charge Target SOC (%)",
+      "description": "Target battery level during cheap rate periods",
+      "minimum": 5,
+      "maximum": 100,
+      "default": 100
+    },
+    "saving_sessions_enabled": {
+      "type": "boolean",
+      "title": "Participate in Saving Sessions",
+      "description": "Automatically export battery power during Octopus Saving Sessions",
+      "default": true
+    },
+    "saving_session_min_soc": {
+      "type": "integer",
+      "title": "Saving Session Minimum SOC (%)",
+      "description": "Stop exporting when battery reaches this level",
+      "minimum": 4,
+      "maximum": 50,
+      "default": 10
+    },
+    "agile_poll_retry_delay": {
+      "type": "integer",
+      "title": "Agile Rate Retry Delay (seconds)",
+      "description": "Initial delay between retries if Agile rates aren't published yet (doubles each retry)",
+      "minimum": 30,
+      "maximum": 300,
+      "default": 60
+    },
+    "max_agile_retry_hours": {
+      "type": "integer",
+      "title": "Maximum Agile Retry Window (hours)",
+      "description": "Maximum total time to keep retrying for late Agile rate publication",
+      "minimum": 2,
+      "maximum": 12,
+      "default": 6
+    },
+    "saving_session_poll_interval": {
+      "type": "integer",
+      "title": "Saving Session Poll Interval (minutes)",
+      "description": "How often to check for new saving sessions",
+      "minimum": 1,
+      "maximum": 60,
+      "default": 15
+    },
+    "intelligent_poll_interval": {
+      "type": "integer",
+      "title": "Intelligent Dispatch Poll Interval (minutes)",
+      "description": "How often to check for new planned dispatches",
+      "minimum": 2,
+      "maximum": 30,
+      "default": 5
+    },
+    "intelligent_dispatch_mode": {
+      "type": "enum",
+      "title": "Intelligent Dispatch Mode",
+      "description": "Which dispatch types count as cheap rate periods",
+      "enum": ["planned_and_started", "started_only"],
+      "default": "planned_and_started"
+    },
+    "enable_export_tariff": {
+      "type": "boolean",
+      "title": "Enable Export Tariff Tracking",
+      "description": "Fetch and display Agile Outgoing export rates",
+      "default": false
+    },
+    "export_tariff_product": {
+      "type": "string",
+      "title": "Export Tariff Product Code",
+      "description": "Product code for export tariff (default: Agile Outgoing)",
+      "default": "AGILE-OUTGOING-19-05-13",
+      "maxLength": 64
+    }
+  }
+}

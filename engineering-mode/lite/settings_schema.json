@@ -1,0 +1,13 @@
+{
+  "title": "Engineering Mode settings",
+  "type": "object",
+  "properties": {
+    "unlock_code": {
+      "type": "password",
+      "title": "Unlock code",
+      "description": "Code required to unlock engineering mode. Change from the default before sharing device access.",
+      "default": "ENGINEERING_MODE_UNLOCK",
+      "maxLength": 64
+    }
+  }
+}

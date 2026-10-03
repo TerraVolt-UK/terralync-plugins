@@ -1,0 +1,34 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Octopus Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>body{font-family:sans-serif;background:#1a1a2e;color:#e0e0e0;padding:20px;max-width:1200px;margin:0 auto}
+.card{background:#16213e;border-radius:12px;padding:20px;margin-bottom:20px}
+h1{color:#00d4aa}h2{color:#e94560}.chart{height:300px}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;text-align:left;font-size:13px;border-bottom:1px solid #2a2a4a}
+.cheap{color:#00d4aa;font-weight:600}</style></head>
+<body><h1>Octopus Energy Dashboard</h1><div id="content">Loading...</div>
+<script>
+// Plugin data files are served via the Lite data route (raw JSON docs).
+const DATA = '/api/plugins/octopus-energy/data/';
+async function jget(f){try{const r=await fetch(DATA+f);return r.ok?await r.json():null}catch(e){return null}}
+function fmt(iso){return iso?new Date(iso).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}):'--'}
+async function loadData(){
+  const [rates,state]=await Promise.all([jget('rates_display.json'),jget('octopus_state.json')]);
+  let html='';
+  if(state)html+='<div class=card><h2>Account</h2><table>'+
+    '<tr><td>MPAN</td><td>'+(state.mpan||'--')+'</td></tr>'+
+    '<tr><td>Region</td><td>'+(state.region_code||'--')+'</td></tr>'+
+    '<tr><td>Tariff</td><td>'+(state.tariff_code||'--')+' ('+(state.detected_mode||'auto')+')</td></tr>'+
+    '<tr><td>Saving session active</td><td>'+(state.ss_active?'YES':'no')+'</td></tr></table></div>';
+  if(!rates){document.getElementById('content').innerHTML=html+'<div class=card>No rate data yet — the plugin publishes here after its first fetch.</div>';return}
+  html+='<div class=card><h2>'+rates.tariff_type+'</h2><p>Region: '+rates.region+' &middot; Last updated: '+fmt(rates.last_updated)+'</p>';
+  if(rates.import_rates&&rates.import_rates.length){html+='<div class=chart><canvas id=chart></canvas></div>'}
+  if(rates.selected_slots&&rates.selected_slots.length){html+='<h2 style="margin-top:16px">Selected charge windows (local)</h2><table>'+
+    rates.selected_slots.map(s=>'<tr><td class=cheap>'+s.start+' &rarr; '+s.end+'</td></tr>').join('')+'</table>'}
+  if(rates.planned_dispatches&&rates.planned_dispatches.length){html+='<h2 style="margin-top:16px">Planned intelligent dispatches</h2><table>'+
+    rates.planned_dispatches.map(d=>'<tr><td class=cheap>'+fmt(d.start)+' &rarr; '+fmt(d.end)+'</td><td>'+(d.source||'')+'</td></tr>').join('')+'</table>'}
+  if(rates.fixed_window){html+='<p>Cheap window: <b class=cheap>'+rates.fixed_window.start+' &rarr; '+rates.fixed_window.end+'</b></p>'}
+  html+='</div>';document.getElementById('content').innerHTML=html;
+  if(rates.import_rates&&rates.import_rates.length){new Chart(document.getElementById('chart'),{type:'line',data:{labels:rates.import_rates.map(r=>r.start.slice(11,16)),datasets:[{label:'Import p/kWh',data:rates.import_rates.map(r=>r.price_pence),borderColor:'#00d4aa'}]}})}
+}
+loadData();setInterval(loadData,60000)
+</script></body></html>

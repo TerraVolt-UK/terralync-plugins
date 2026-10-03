@@ -1,0 +1,62 @@
+{
+  "id": "engineering-mode",
+  "name": "Engineering Mode",
+  "version": "1.0.0",
+  "min_terralync": "1.0.0",
+  "author": "TerraLync Team",
+  "description": "Enables engineering-level inverter configuration commands. WARNING: Incorrect use can void warranty, damage equipment, or violate grid regulations.",
+  "license": "Proprietary",
+  "homepage": "https://github.com/TerraVolt-UK/terralync-plugins",
+  "entry_point": "main.py",
+
+  "permissions": {
+    "read_inverter_data": true,
+    "write_inverter": true,
+    "read_historian": false,
+    "write_scheduler": false,
+    "network_access": false,
+    "quick_actions": false,
+    "raw_register_write": true,
+    "filesystem": "own_dir"
+  },
+
+  "esp32": {
+    "min_heap_kb": 30,
+    "boards": ["geek-16mb", "guition-16mb", "s3-16mb", "s3-8mb"],
+    "api_level": 1
+  },
+
+  "engineering": {
+    "unlock_code": "ENGINEERING_MODE_UNLOCK",
+    "registers": {
+      "2":   {"min": 0, "max": 65535},
+      "5":   {"min": 0, "max": 65535},
+      "13":  {"min": 0, "max": 65535},
+      "14":  {"min": 0, "max": 65535},
+      "15":  {"min": 0, "max": 65535},
+      "16":  {"min": 0, "max": 65535},
+      "17":  {"min": 0, "max": 65535},
+      "26":  {"min": 0, "max": 24000},
+      "42":  {"min": 0, "max": 1},
+      "47":  {"min": 0, "max": 1},
+      "48":  {"min": 0, "max": 1},
+      "49":  {"min": 0, "max": 1},
+      "54":  {"min": 0, "max": 1},
+      "55":  {"min": 1, "max": 1000},
+      "58":  {"min": 0, "max": 1},
+      "60":  {"min": 800, "max": 6000},
+      "109": {"min": 0, "max": 1},
+      "126": {"min": 0, "max": 1},
+      "175": {"min": 0, "max": 1},
+      "178": {"min": 0, "max": 1}
+    }
+  },
+
+  "lifecycle": {
+    "start_delay_seconds": 2,
+    "restart_on_crash": true,
+    "max_restarts": 3,
+    "restart_cooldown_seconds": 30,
+    "health_check_interval_seconds": 60
+  }
+}
