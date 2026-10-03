@@ -99,6 +99,20 @@ jobs:
             "${RELEASED_PLUGIN}"
           echo "  Created dist/${archive_name} ($(du -sh dist/${archive_name} | cut -f1))"
 
+          # Lite variant: if the registry entry carries a `lite` block and
+          # the plugin ships a lite/ subdir, package it separately so the
+          # Lite installer gets a minimal tarball.
+          lite_archive="${RELEASED_PLUGIN}-lite-${VERSION}.tar.gz"
+          if [ -d "${RELEASED_PLUGIN}/lite" ]; then
+            tar \
+              --exclude='__pycache__' \
+              --exclude='*.pyc' \
+              -czf "dist/${lite_archive}" \
+              -C "${RELEASED_PLUGIN}" \
+              lite
+            echo "  Created dist/${lite_archive} (lite variant)"
+          fi
+
           # Rewrite registry.json - only update the released plugin
           python3 - <<PYEOF
           import json, os, hashlib
@@ -133,6 +147,15 @@ jobs:
               plugin["checksum_sha256"] = sha256
               plugin["version"] = version
               print(f"Updated {pid}: {plugin['download_url']}")
+
+              lite = plugin.get("lite")
+              lite_archive = f"{pid}-lite-{version}.tar.gz"
+              lite_path = f"dist/{lite_archive}"
+              if lite is not None and os.path.exists(lite_path):
+                  lite["download_url"] = f"{base_url}/{lite_archive}"
+                  lite["checksum_sha256"] = hashlib.sha256(
+                      open(lite_path, "rb").read()).hexdigest()
+                  print(f"Updated {pid}.lite: {lite['download_url']}")
 
           with open("registry.json", "w") as f:
               json.dump(registry, f, indent=2)

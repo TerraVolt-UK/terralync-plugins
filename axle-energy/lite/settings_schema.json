@@ -1,0 +1,59 @@
+{
+  "title": "Axle Energy VPP settings",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "title": "Enable Axle Energy VPP",
+      "description": "Turn on automatic response to grid events",
+      "default": false
+    },
+    "api_key": {
+      "type": "password",
+      "title": "Axle API Key",
+      "description": "Your Axle Energy API authentication token",
+      "default": "",
+      "maxLength": 256
+    },
+    "poll_interval_normal": {
+      "type": "integer",
+      "title": "Normal Polling Interval (minutes)",
+      "description": "Minutes between API checks when no event is active",
+      "minimum": 1,
+      "maximum": 60,
+      "default": 15
+    },
+    "poll_interval_fast": {
+      "type": "integer",
+      "title": "Fast Polling Interval (seconds)",
+      "description": "Seconds between API checks when an event is approaching or active",
+      "minimum": 30,
+      "maximum": 300,
+      "default": 90
+    },
+    "fast_poll_window": {
+      "type": "number",
+      "title": "Fast Poll Window (hours)",
+      "description": "Hours before event start to begin fast polling",
+      "minimum": 0,
+      "maximum": 12,
+      "default": 1
+    },
+    "event_buffer_minutes": {
+      "type": "integer",
+      "title": "Event Buffer (minutes)",
+      "description": "Start export this many minutes before the event, and continue this many minutes after it ends",
+      "minimum": 0,
+      "maximum": 30,
+      "default": 3
+    },
+    "discharge_target_soc": {
+      "type": "integer",
+      "title": "Minimum Battery SOC (%)",
+      "description": "Stop discharging when the battery reaches this level",
+      "minimum": 4,
+      "maximum": 100,
+      "default": 4
+    }
+  }
+}
