@@ -218,7 +218,7 @@ async def _intelli_dispatch(ctx, st, settings):
     """GraphQL plannedDispatches → charge slots on today."""
     q = ("query PlannedDispatches($accountNumber: String!) {"
          "  plannedDispatches(accountNumber: $accountNumber) {"
-         "    start end source location meta { totalCostAdded }"
+         "    start end delta meta { source location }"
          "  } }")
     data = await _oe_gql(ctx, settings, q,
                          {"accountNumber": settings["account_number"]})
@@ -276,9 +276,8 @@ async def _intelli_dispatch(ctx, st, settings):
                 "end": settings.get("intelligent_go_end", "05:30")},
             "planned_dispatches": [{
                 "start": d.get("start", ""), "end": d.get("end", ""),
-                "source": d.get("source", ""),
-                "energy_added": (d.get("meta") or {}).get(
-                    "totalCostAdded", 0)} for d in dispatches],
+                "source": (d.get("meta") or {}).get("source", ""),
+                "delta": d.get("delta")} for d in dispatches],
         })
     except Exception:
         pass

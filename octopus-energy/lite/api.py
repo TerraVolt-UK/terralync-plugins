@@ -17,15 +17,58 @@ async def _oe_rest(ctx, settings, path):
     return resp.get("json") or {}
 
 
-async def _oe_gql(ctx, settings, query, variables):
-    """POST GraphQL → data dict (raises on failure)."""
-    resp = await ctx.http_post(
-        _OE_GQL, {"query": query, "variables": variables},
-        headers=_auth(settings["api_key"]), timeout=25)
+async def _kraken_token(ctx, settings):
+    """Kraken JWT via obtainKrakenToken — GraphQL rejects the API-key
+    Basic auth (REST accepts it, GraphQL does not). Cached ~55 min."""
+    cache = ctx.load_json("kraken_token", {}) or {}
+    if cache.get("token") and \
+            time.time() - cache.get("ts", 0) < 3300:
+        return cache["token"]
+    q = ('mutation { obtainKrakenToken(input: {APIKey: "%s"})'
+         ' { token } }' % settings["api_key"])
+    resp = await ctx.http_post(_OE_GQL, {"query": q},
+                               headers={}, timeout=25)
     if resp.get("status") != 200:
-        raise Exception("Octopus GQL → {}".format(resp.get("status")))
-    data = resp.get("json") or {}
-    return data.get("data") or {}
+        raise Exception("Kraken token → {}".format(resp.get("status")))
+    tok = ((resp.get("json") or {}).get("data") or {}).get(
+        "obtainKrakenToken", {}).get("token")
+    if not tok:
+        raise Exception("Kraken token missing")
+    try:
+        ctx.save_json("kraken_token", {"token": tok,
+                                       "ts": time.time()})
+    except Exception:
+        pass
+    return tok
+
+
+async def _oe_gql(ctx, settings, query, variables):
+    """POST GraphQL with Kraken JWT → data dict (raises on failure).
+    Retries once with a fresh token on AUTHORIZATION errors."""
+    tok = await _kraken_token(ctx, settings)
+    for attempt in (0, 1):
+        resp = await ctx.http_post(
+            _OE_GQL, {"query": query, "variables": variables},
+            headers={"Authorization": tok}, timeout=25)
+        if resp.get("status") != 200:
+            raise Exception("Octopus GQL → {}".format(
+                resp.get("status")))
+        body = resp.get("json") or {}
+        errs = body.get("errors") or []
+        auth_err = any("AUTHORIZATION" in
+                       (e.get("extensions") or {}).get("errorType", "")
+                       for e in errs if isinstance(e, dict))
+        if auth_err and attempt == 0:
+            try:
+                ctx.save_json("kraken_token", {"token": "", "ts": 0})
+            except Exception:
+                pass
+            tok = await _kraken_token(ctx, settings)
+            continue
+        if errs:
+            raise Exception("Octopus GQL errors: {}".format(
+                errs[0].get("message", "?")[:60] if errs else "?"))
+        return body.get("data") or {}
 
 
 async def _fetch_rates(ctx, settings, product, tariff,
@@ -82,10 +125,11 @@ async def _discover(ctx, st, settings):
     mpan = chosen.get("mpan", "")
     st["mpan"] = mpan
     st["region_code"] = settings.get("region_code") or \
-        _REGION_FROM_MPAN.get(mpan[-10:-8], "C")
+        _REGION_FROM_MPAN.get(mpan[:2], "C")
 
     now = time.time()
-    for ag in chosen.get("agreements") or []:
+    agreements = chosen.get("agreements") or []
+    for ag in agreements:
         vf = _parse_iso(ag.get("valid_from", ""))
         vt = _parse_iso(ag.get("valid_to", "")) if ag.get("valid_to") \
             else None
@@ -97,7 +141,8 @@ async def _discover(ctx, st, settings):
         st["detected_mode"] = "standard_variable"
         st["tariff_code"] = ""
 
-    ctx.log("discovered: mpan={} region={} tariff={} ({})".format(
-        st["mpan"], st["region_code"], st["tariff_code"],
-        st["detected_mode"]))
+    ctx.log("discovered: mpan={} region={} tariff={} ({}) "
+            "agreements={} now={}".format(
+                st["mpan"], st["region_code"], st["tariff_code"],
+                st["detected_mode"], len(agreements), int(now)))
     _save_state(ctx, st)
