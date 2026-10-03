@@ -1,0 +1,12 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Octopus Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>body{font-family:sans-serif;background:#1a1a2e;color:#e0e0e0;padding:20px;max-width:1200px;margin:0 auto}
+.card{background:#16213e;border-radius:12px;padding:20px;margin-bottom:20px}
+h1{color:#00d4aa}h2{color:#e94560}.chart{height:300px}</style></head>
+<body><h1>Octopus Energy Dashboard</h1><div id="content">Loading...</div>
+<script>
+async function loadData(){try{const r=await fetch('rates_display.json');const d=await r.json();render(d)}catch(e){document.getElementById('content').innerHTML='Error: '+e}}
+function render(d){let html='<div class=card><h2>'+d.tariff_type+'</h2><p>Last updated: '+d.last_updated+'</p>';if(d.import_rates){html+='<div class=chart><canvas id=chart></canvas></div>'}
+html+='</div>';document.getElementById('content').innerHTML=html;if(d.import_rates){new Chart(document.getElementById('chart'),{type:'line',data:{labels:d.import_rates.map(r=>r.start.slice(11,16)),datasets:[{label:'Import p/kWh',data:d.import_rates.map(r=>r.price_pence),borderColor:'#00d4aa'}]}})}}
+loadData();setInterval(loadData,60000)
+</script></body></html>
