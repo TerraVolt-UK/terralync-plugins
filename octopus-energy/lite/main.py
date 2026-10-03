@@ -155,7 +155,9 @@ def _auth(key):
 # ---------------------------------------------------------------------------
 
 async def _oe_rest(ctx, settings, path):
-    """GET <base><path> → parsed JSON dict (raises on failure)."""
+    """GET <base>/<path> → parsed JSON dict (raises on failure)."""
+    if not path.startswith("/"):
+        path = "/" + path
     resp = await ctx.http_get(
         _OE_REST + path, headers=_auth(settings["api_key"]), timeout=25)
     if resp.get("status") != 200:
@@ -336,8 +338,7 @@ async def _agile_update(ctx, st, settings):
     """Fetch tomorrow's rates, write tomorrow's charge slots.
     Returns True once rates for tomorrow are in hand."""
     tariff = st.get("tariff_code", "")
-    parts = tariff.split("-")
-    product = parts[2] if len(parts) >= 3 else "AGILE-FLEX-22-11-25"
+    product = _product_from_tariff(tariff) or "AGILE-FLEX-22-11-25"
     region = st.get("region_code") or "C"
     full_tariff = "E-1R-{}-{}".format(product, region)
 
@@ -403,6 +404,7 @@ async def _agile_update(ctx, st, settings):
                     "charge_power_steps", 50)),
             }})
     await ctx.write_schedule(day, blocks)
+    _mark_day(st, day)
     ctx.log("wrote {} agile charge slot(s) for {}".format(
         len(slots), day))
 
@@ -420,6 +422,36 @@ def _merged_blocks(sched, drop_prefixes):
             continue
         out.append(b)
     return out
+
+
+def _mark_day(st, day):
+    """Remember which weekday schedules we wrote agile/dispatch blocks
+    into — plugin windows must not re-fire the same weekday next week."""
+    days = st.setdefault("write_days", {})
+    days[day] = True
+
+
+async def _clean_other_days(ctx, st):
+    """Strip agile/dispatch blocks from previously-written days other
+    than today/tomorrow — they were one-off windows."""
+    now = time.time()
+    keep = (_local_day(now),
+            _local_day(_local_midnight(now) + 86400))
+    for day in list(st.get("write_days") or {}):
+        if day in keep:
+            continue
+        try:
+            sched = ctx.read_schedule(day)
+            old = sched.get("blocks") or []
+            blocks = _merged_blocks(sched, (_AGILE_PREFIX,
+                                            _DISPATCH_PREFIX))
+            if len(blocks) != len(old):
+                await ctx.write_schedule(day, blocks)
+                ctx.log("removed stale plugin block(s) from " + day)
+        except Exception as exc:
+            ctx.log("stale-block clean {}: {}".format(day, exc),
+                    "warning")
+        st["write_days"].pop(day, None)
 
 
 def _publish_rates_display(ctx, st, settings, import_rates,
@@ -527,6 +559,7 @@ async def _intelli_dispatch(ctx, st, settings):
             }})
     if rel or _has_dispatch_blocks(sched):
         await ctx.write_schedule(today, blocks)
+        _mark_day(st, today)
         ctx.log("{} intelligent dispatch slot(s) for {}".format(
             len(rel), today))
 
@@ -852,6 +885,10 @@ async def run(ctx):
                 st["disp_next"] = now + int(settings.get(
                     "intelligent_poll_interval", 5)) * 60
 
+            # --- stale plugin blocks on other days ---
+            if st.get("write_days"):
+                await _clean_other_days(ctx, st)
+
             # --- saving sessions poll ---
             if settings.get("saving_sessions_enabled", True) and \
                     now >= st["ss_next"]:
@@ -869,7 +906,20 @@ async def run(ctx):
 
 
 async def stop(ctx):
-    """Release the inverter if a saving session was active on stop."""
+    """Release the inverter if a saving session was active on stop, and
+    strip every plugin-owned schedule block — stale charge windows must
+    not keep firing while disabled/uninstalled."""
+    for day in DAYS:
+        try:
+            sched = ctx.read_schedule(day)
+            old = sched.get("blocks") or []
+            blocks = _merged_blocks(sched, (
+                _AGILE_PREFIX, _INTELLI_PREFIX, _DISPATCH_PREFIX))
+            if len(blocks) != len(old):
+                await ctx.write_schedule(day, blocks)
+                ctx.log("stop: removed plugin block(s) from " + day)
+        except Exception:
+            pass
     st = ctx.load_json("octopus_state", {}) or {}
     if st.get("ss_active"):
         ctx.log("stopping mid-saving-session — resuming", "warning")
