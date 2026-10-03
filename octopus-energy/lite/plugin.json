@@ -1,7 +1,7 @@
 {
   "id": "octopus-energy",
   "name": "Octopus Energy Tariff Optimiser",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "min_terralync": "1.0.0",
   "author": "TerraLync Team",
   "description": "Links your Octopus Energy account to TerraLync for tariff-aware battery scheduling. Supports Intelligent Go, Agile, and Saving Session participation.",

@@ -6,7 +6,7 @@
 
 import time
 
-from helpers import DAYS, _TICK_S, _DISCOVERY_RETRY_S, _AGILE_PREFIX, _INTELLI_PREFIX, _DISPATCH_PREFIX, _parse_iso, _iso, _uk_dst, _local_hm, _local_day, _local_midnight, _days_from_civil, _product_from_tariff, _classify, _mode, _save_state
+from helpers import DAYS, _TICK_S, _DISCOVERY_RETRY_S, _AGILE_PREFIX, _INTELLI_PREFIX, _DISPATCH_PREFIX, _parse_iso, _iso, _uk_dst, _local_hm, _local_day, _local_midnight, _days_from_civil, _product_from_tariff, _classify, _mode, _save_state, _synth_two_tier
 from api import _oe_rest, _oe_gql, _fetch_rates, _discover
 from sched import _slots_from_rates, _agile_update, _merged_blocks, _mark_day, _clean_other_days, _publish_rates_display, _intelli_fixed, _intelli_dispatch, _has_dispatch_blocks
 from sessions import _region_match, _saving_sessions, _persist_ss, _log_ss
@@ -119,6 +119,32 @@ async def run(ctx):
                         rates = await _fetch_rates(
                             ctx, settings, prod, st["tariff_code"],
                             _iso(now - 86400), _iso(now + 86400))
+                        if not rates:
+                            # Four-rate products (IOG, small-business)
+                            # publish no standard-unit-rates — only flat
+                            # day/night figures.  Synthesise the 2-tier
+                            # schedule the provider + planner consume.
+                            day_r = await _fetch_rates(
+                                ctx, settings, prod, st["tariff_code"],
+                                _iso(now - 86400), _iso(now + 86400),
+                                kind="day-unit-rates")
+                            night_r = await _fetch_rates(
+                                ctx, settings, prod, st["tariff_code"],
+                                _iso(now - 86400), _iso(now + 86400),
+                                kind="night-unit-rates")
+                            if day_r and night_r:
+                                dp = day_r[-1].get("value_inc_vat", 0)
+                                np_ = night_r[-1].get("value_inc_vat", 0)
+                                rates = _synth_two_tier(
+                                    dp, np_,
+                                    settings.get("intelligent_go_start",
+                                                 "23:30"),
+                                    settings.get("intelligent_go_end",
+                                                 "05:30"), now)
+                                if rates:
+                                    ctx.log("2-tier rates synthesised "
+                                            "({}p day / {}p night)"
+                                            .format(dp, np_), "info")
                         if rates:
                             ctx.save_json("standard_rates_cache",
                                           {"date": day_tag_today,

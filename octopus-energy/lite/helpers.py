@@ -151,6 +151,36 @@ def _product_from_tariff(tariff_code):
     return ""
 
 
+def _synth_two_tier(day_pence, night_pence, start_hm, end_hm, now):
+    """Four-rate products (Intelligent Octopus Go, small-business IOG)
+    publish no standard-unit-rates — only flat day/night figures.  Build
+    the 2-tier window records the provider consumes: night rate inside
+    the configured off-peak window, day rate elsewhere, for ±2 days."""
+    try:
+        sh, sm = [int(x) for x in start_hm.split(":")]
+        eh, em = [int(x) for x in end_hm.split(":")]
+    except Exception:
+        return []
+    s_off = sh * 3600 + sm * 60
+    e_off = eh * 3600 + em * 60
+    if not 0 < e_off < s_off < 86400:
+        return []
+    mid = _local_midnight(now)
+    out = []
+    for d in (-86400, 0, 86400, 172800):
+        m = mid + d
+        out.append({"valid_from": _iso(m),
+                    "valid_to": _iso(m + e_off),
+                    "value_inc_vat": night_pence})
+        out.append({"valid_from": _iso(m + e_off),
+                    "valid_to": _iso(m + s_off),
+                    "value_inc_vat": day_pence})
+        out.append({"valid_from": _iso(m + s_off),
+                    "valid_to": _iso(m + 86400),
+                    "value_inc_vat": night_pence})
+    return out
+
+
 # MPAN distributor ID (first 2 digits) → GSP group letter. Codes are
 # NOT sequential with letters: Scotland sits at 17/18 and Yorkshire
 # is 23. Tariff-code suffix overrides this (see _discover).
