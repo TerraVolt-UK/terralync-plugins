@@ -25,14 +25,14 @@
     {
       "id": "octopus-energy",
       "name": "Octopus Energy Tariff Optimiser",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "description": "Links your Octopus Energy account to TerraLync for tariff-aware battery scheduling. Supports Intelligent Go, Agile, and Saving Session participation.",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/octopus-energy/v1.0.4/octopus-energy-1.0.4.tar.gz",
-      "checksum_sha256": "a4956e5c27c1b6ec9d1b920ae0c3feaa76380098064e258b15416dd29d429474",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/octopus-energy/v1.0.5/octopus-energy-1.0.5.tar.gz",
+      "checksum_sha256": "951da026809a6eb72e4e91eb94df2d422c5013553e6939ad9e1176efc104c615",
       "lite": {
-        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/octopus-energy/v1.0.4/octopus-energy-lite-1.0.4.tar.gz",
-        "checksum_sha256": "f88a4ff7c52a39030e7187f5d47644df013a5fde0161fe3954407a65a71fd081"
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/octopus-energy/v1.0.5/octopus-energy-lite-1.0.5.tar.gz",
+        "checksum_sha256": "3f598c69e23f567b3d5fd6e65491b34db8b651bd62f007e8aa381e0ea93aa2a1"
       }
     },
     {
