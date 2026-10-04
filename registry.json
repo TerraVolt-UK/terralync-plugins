@@ -42,10 +42,10 @@
       "description": "Enables engineering-level inverter configuration commands. WARNING: Incorrect use can void warranty, damage equipment, or violate grid regulations.",
       "author": "TerraLync Team",
       "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/engineering-mode/v1.0.0/engineering-mode-1.0.0.tar.gz",
-      "checksum_sha256": "",
+      "checksum_sha256": "1147421b6c8cf282e1b99da2210a56e7667ca6a1867c833a0009b89fe79425bf",
       "lite": {
         "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/engineering-mode/v1.0.0/engineering-mode-lite-1.0.0.tar.gz",
-        "checksum_sha256": ""
+        "checksum_sha256": "c966ef1ab1508542db909e9c8fe056af53bb20b06087e3fd85bf86813ac54371"
       }
     }
   ]
