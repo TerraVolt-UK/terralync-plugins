@@ -214,6 +214,29 @@ async def _intelli_fixed(ctx, st, settings):
                     "error")
 
 
+def _fixed_window_spans(now, settings):
+    """Fixed cheap window as epoch spans covering today (last night's
+    tail + tonight's start).  Dispatch slots fully inside need no
+    schedule block — the standing intelli_charge window already
+    commands charging then."""
+    try:
+        sh, sm = [int(x) for x in settings.get(
+            "intelligent_go_start", "23:30").split(":")]
+        eh, em = [int(x) for x in settings.get(
+            "intelligent_go_end", "05:30").split(":")]
+    except (ValueError, AttributeError):
+        return []
+    mid = _local_midnight(now)
+    spans = []
+    for d in (-86400, 0):
+        s0 = mid + d + sh * 3600 + sm * 60
+        e0 = mid + d + eh * 3600 + em * 60
+        if e0 <= s0:
+            e0 += 86400
+        spans.append((s0, e0))
+    return spans
+
+
 async def _intelli_dispatch(ctx, st, settings):
     """GraphQL plannedDispatches → charge slots on today."""
     q = ("query PlannedDispatches($accountNumber: String!) {"
@@ -248,7 +271,12 @@ async def _intelli_dispatch(ctx, st, settings):
     today = _local_day(now)
     sched = ctx.read_schedule(today)
     blocks = _merged_blocks(sched, (_DISPATCH_PREFIX,))
+    fixed = _fixed_window_spans(now, settings)
+    wrote = 0
     for i, (s, e, d) in enumerate(rel):
+        if any(fs <= s and e <= fe for fs, fe in fixed):
+            continue
+        wrote += 1
         blocks.append({
             "id": _DISPATCH_PREFIX + str(i) + "_" +
             _local_hm(s).replace(":", ""),
@@ -263,8 +291,11 @@ async def _intelli_dispatch(ctx, st, settings):
     if rel or _has_dispatch_blocks(sched):
         await ctx.write_schedule(today, blocks)
         _mark_day(st, today)
-        ctx.log("{} intelligent dispatch slot(s) for {}".format(
-            len(rel), today))
+        msg = "{} intelligent dispatch slot(s) for {}".format(
+            wrote, today)
+        if wrote < len(rel):
+            msg += " ({} inside fixed window)".format(len(rel) - wrote)
+        ctx.log(msg)
 
     # Also publish display data for the frontend
     try:
