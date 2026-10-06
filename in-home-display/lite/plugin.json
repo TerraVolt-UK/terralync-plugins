@@ -1,0 +1,34 @@
+{
+  "id": "in-home-display",
+  "name": "In Home Display",
+  "version": "1.2.8",
+  "min_terralync": "1.0.0",
+  "author": "TerraLync Team",
+  "description": "A beautiful, modern in-home display showing real-time energy flow with animated visualizations for solar, house load, battery, and grid status. Features dual display modes (Bento Grid and NEXUS Fluid) selectable via plugin settings.",
+  "license": "MIT",
+  "homepage": "https://github.com/terralync/in-home-display",
+  "entry_point": "main.py",
+
+  "permissions": {
+    "read_inverter_data": true,
+    "read_historian": false,
+    "write_inverter": false,
+    "write_scheduler": false,
+    "network_access": false,
+    "filesystem": "own_dir"
+  },
+
+  "esp32": {
+    "min_heap_kb": 15,
+    "boards": ["geek-16mb", "guition-16mb", "s3-16mb", "s3-8mb"],
+    "api_level": 1
+  },
+
+  "lifecycle": {
+    "start_delay_seconds": 2,
+    "restart_on_crash": true,
+    "max_restarts": 3,
+    "restart_cooldown_seconds": 30,
+    "health_check_interval_seconds": 60
+  }
+}
