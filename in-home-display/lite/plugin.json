@@ -18,6 +18,12 @@
     "filesystem": "own_dir"
   },
 
+  "esp32": {
+    "min_heap_kb": 15,
+    "boards": ["geek-16mb", "guition-16mb", "s3-16mb", "s3-8mb"],
+    "api_level": 1
+  },
+
   "lifecycle": {
     "start_delay_seconds": 2,
     "restart_on_crash": true,
