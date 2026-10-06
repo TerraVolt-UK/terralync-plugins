@@ -3,14 +3,14 @@
     {
       "id": "in-home-display",
       "name": "In-Home Display",
-      "version": "1.2.8",
+      "version": "1.2.9",
       "description": "Real-time in-home display for TerraLync showing solar, battery, and grid power. Features dual display modes (Bento Grid and NEXUS Fluid) selectable via plugin settings.",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/in-home-display/v1.2.8/in-home-display-1.2.8.tar.gz",
-      "checksum_sha256": "635e2f423e4b4ef20399439b604b1261a50daec623145bc28f247870c9ce9640",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/in-home-display/v1.2.9/in-home-display-1.2.9.tar.gz",
+      "checksum_sha256": "695b6428e8c448d977bc6b9a02044e1c082fc65830726b22b0f479e65eed1d25",
       "lite": {
-        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/in-home-display/v1.2.8/in-home-display-lite-1.2.8.tar.gz",
-        "checksum_sha256": "1ed6b9bd9299b0ffb25507b59f9aa75c2b479a143d5a61d9e52e4b4c179241cd"
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/in-home-display/v1.2.9/in-home-display-lite-1.2.9.tar.gz",
+        "checksum_sha256": "fab1618908df5cc3a850440a1b64c1657afccb8af15929f98d42bbfeb4ecbc4a"
       }
     },
     {
