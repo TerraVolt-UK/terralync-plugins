@@ -16,14 +16,14 @@
     {
       "id": "axle-energy",
       "name": "Axle Energy VPP",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "description": "Virtual Power Plant integration for Axle Energy - automatic battery export during grid events",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.2/axle-energy-1.3.2.tar.gz",
-      "checksum_sha256": "91fb896e38dda62ff10553af5961269c5a5b3307c178e2c425dcb043976d2850",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.3/axle-energy-1.3.3.tar.gz",
+      "checksum_sha256": "dc06f2c5bcf4cef9ca2a2db278a32930c1c0a9c9a1f0fbe0397189ec3c05470b",
       "lite": {
-        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.2/axle-energy-lite-1.3.2.tar.gz",
-        "checksum_sha256": "a9e89dcacd3267213f164ce02a938192e27848ca0f091793aa35e7fd461dcf08"
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.3/axle-energy-lite-1.3.3.tar.gz",
+        "checksum_sha256": "6f831f11b9851279be5beab6b76b3123af42a7803cd9e3a88ad8fb8edee1ab77"
       }
     },
     {
@@ -43,7 +43,7 @@
       "id": "ohme-ev",
       "name": "Ohme EV Charger",
       "version": "1.0.0",
-      "description": "Live Ohme EV charger telemetry — discharge hold while the car charges, planned charge windows for the Energy Planner, and EV-load corrections for forecasting.",
+      "description": "Live Ohme EV charger telemetry \u2014 discharge hold while the car charges, planned charge windows for the Energy Planner, and EV-load corrections for forecasting.",
       "author": "TerraLync Team",
       "download_url": "",
       "checksum_sha256": "",
