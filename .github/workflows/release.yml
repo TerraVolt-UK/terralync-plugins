@@ -127,6 +127,7 @@ jobs:
               registry = json.load(f)
 
           # Only update the plugin being released
+          released_entry = None
           for plugin in registry["plugins"]:
               if plugin["id"] != released_plugin:
                   print(f"Skipping {plugin['id']} (not the released plugin)")
@@ -157,9 +158,20 @@ jobs:
                       open(lite_path, "rb").read()).hexdigest()
                   print(f"Updated {pid}.lite: {lite['download_url']}")
 
+              released_entry = plugin
+
           with open("registry.json", "w") as f:
               json.dump(registry, f, indent=2)
               f.write("\n")
+
+          # The commit step re-applies ONLY this entry onto a fresh
+          # pull — concurrent plugin releases must never revert each
+          # other's registry fields.
+          if released_entry is None:
+              print(f"ERROR: {released_plugin} not in registry.json")
+              exit(1)
+          with open("/tmp/registry-entry.json", "w") as f:
+              json.dump(released_entry, f)
 
           print("registry.json updated (only released plugin)")
           PYEOF
@@ -180,11 +192,38 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Stash the updated registry, pull latest main, then re-apply
-          cp registry.json /tmp/registry-updated.json
-          git fetch origin main
-          git checkout origin/main -- registry.json
-          cp /tmp/registry-updated.json registry.json
-          git add registry.json
-          git diff --staged --quiet || git commit -m "chore: update registry.json for ${{ github.ref_name }}"
-          git push origin HEAD:main
+          # Concurrent plugin releases race on this push.  Loop: fetch
+          # latest main, re-apply ONLY our entry (never revert another
+          # plugin's fields), push, retry on non-fast-forward.
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git checkout origin/main -- registry.json
+            python3 - <<'PYEOF'
+          import json
+          with open("/tmp/registry-entry.json") as f:
+              entry = json.load(f)
+          with open("registry.json") as f:
+              registry = json.load(f)
+          for i, p in enumerate(registry["plugins"]):
+              if p["id"] == entry["id"]:
+                  registry["plugins"][i] = entry
+                  break
+          else:
+              registry["plugins"].append(entry)
+          with open("registry.json", "w") as f:
+              json.dump(registry, f, indent=2)
+              f.write("\n")
+          PYEOF
+            git add registry.json
+            if git diff --staged --quiet; then
+              echo "registry already up to date"
+              break
+            fi
+            git commit -m "chore: update registry.json for ${{ github.ref_name }}"
+            if git push origin HEAD:main; then
+              echo "registry push succeeded"
+              break
+            fi
+            echo "push rejected (attempt $attempt) — retrying on fresh main"
+            sleep 2
+          done
