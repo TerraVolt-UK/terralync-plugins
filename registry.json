@@ -45,11 +45,11 @@
       "version": "1.0.0",
       "description": "Live Ohme EV charger telemetry \u2014 discharge hold while the car charges, planned charge windows for the Energy Planner, and EV-load corrections for forecasting.",
       "author": "TerraLync Team",
-      "download_url": "",
-      "checksum_sha256": "",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/ohme-ev/v1.0.0/ohme-ev-1.0.0.tar.gz",
+      "checksum_sha256": "1841bdd991529511c8e686aec0da1bea4d572f8c79758c5aa16cd70aa0c99c2a",
       "lite": {
-        "download_url": "",
-        "checksum_sha256": ""
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/ohme-ev/v1.0.0/ohme-ev-lite-1.0.0.tar.gz",
+        "checksum_sha256": "d8cb65943f09c4818d2fb074e841da3be169ae7a892075a8297e20701bbb67e1"
       }
     },
     {
