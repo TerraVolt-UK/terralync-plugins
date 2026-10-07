@@ -1,0 +1,104 @@
+{
+  "title": "Ohme EV Charger settings",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "title": "Enable Ohme EV Charger",
+      "description": "Poll the Ohme cloud API for live charge telemetry",
+      "default": false
+    },
+    "email": {
+      "type": "string",
+      "title": "Ohme account email",
+      "description": "Email address used to sign in to the Ohme app",
+      "default": "",
+      "maxLength": 128
+    },
+    "password": {
+      "type": "password",
+      "title": "Ohme account password",
+      "description": "Password used to sign in to the Ohme app (stored on-device only)",
+      "default": "",
+      "maxLength": 128
+    },
+    "ev_inside_ct": {
+      "type": "boolean",
+      "title": "Charger is inside the inverter CT clamp",
+      "description": "On when the inverter's meter can see the EV charge load — the house battery could otherwise drain into the car. Off for chargers wired grid-side of the CT (discharge hold and load corrections are skipped; charge windows still publish).",
+      "default": true
+    },
+    "hold_discharge_while_charging": {
+      "type": "boolean",
+      "title": "Hold battery discharge while EV charges",
+      "description": "Pause battery discharge whenever the charger reports real draw — stops the house battery feeding the car",
+      "default": true
+    },
+    "hold_during_planned_slots": {
+      "type": "boolean",
+      "title": "Hold during claimed charge windows",
+      "description": "Also hold battery discharge during Ohme's planned charge windows while plugged in — cheap insurance when the charger starts before telemetry catches up (the window is cheap-rate anyway)",
+      "default": true
+    },
+    "hold_soc_floor": {
+      "type": "integer",
+      "title": "Hold release SOC floor (%)",
+      "description": "Release the discharge hold early if house battery SOC falls to this level (secondary failsafe)",
+      "minimum": 4,
+      "maximum": 50,
+      "default": 4
+    },
+    "cocharge_during_slots": {
+      "type": "boolean",
+      "title": "Co-charge battery during EV windows",
+      "description": "Publish planned EV charge windows to the Energy Planner at the pseudo-rate below so it can schedule battery charging alongside the car",
+      "default": false
+    },
+    "ev_slot_rate_pence": {
+      "type": "number",
+      "title": "EV window pseudo-rate (p/kWh)",
+      "description": "Rate the planner assumes during EV charge windows — set to your off-peak price (e.g. Intelligent Go 7p)",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 7.0
+    },
+    "supply_limit_amps": {
+      "type": "integer",
+      "title": "Main supply fuse rating (A)",
+      "description": "Household supply limit — EV + battery co-charging is suppressed if combined draw would exceed this",
+      "minimum": 40,
+      "maximum": 125,
+      "default": 60
+    },
+    "headroom_amps": {
+      "type": "integer",
+      "title": "Household headroom (A)",
+      "description": "Amps to reserve for ordinary house load when checking co-charge feasibility against the supply limit",
+      "minimum": 5,
+      "maximum": 60,
+      "default": 22
+    },
+    "publish_slots_unplugged": {
+      "type": "boolean",
+      "title": "Publish charge windows while unplugged",
+      "description": "Keep feeding planned windows to the planner even when no car is connected (Octopus dispatches can persist after unplug)",
+      "default": false
+    },
+    "poll_idle_s": {
+      "type": "integer",
+      "title": "Idle poll interval (seconds)",
+      "description": "Seconds between Ohme API polls when no charge is active or imminent",
+      "minimum": 120,
+      "maximum": 1800,
+      "default": 300
+    },
+    "poll_active_s": {
+      "type": "integer",
+      "title": "Active poll interval (seconds)",
+      "description": "Seconds between polls while charging, pending approval, or inside a planned window",
+      "minimum": 30,
+      "maximum": 600,
+      "default": 60
+    }
+  }
+}

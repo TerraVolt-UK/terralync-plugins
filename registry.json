@@ -38,6 +38,19 @@
         "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/octopus-energy/v1.0.6/octopus-energy-lite-1.0.6.tar.gz",
         "checksum_sha256": "9c8d8ca4d740715a54c099985ec496d65c8d2fc6e882a58c068b6405e49b8d05"
       }
+    },
+    {
+      "id": "ohme-ev",
+      "name": "Ohme EV Charger",
+      "version": "1.0.0",
+      "description": "Live Ohme EV charger telemetry — discharge hold while the car charges, planned charge windows for the Energy Planner, and EV-load corrections for forecasting.",
+      "author": "TerraLync Team",
+      "download_url": "",
+      "checksum_sha256": "",
+      "lite": {
+        "download_url": "",
+        "checksum_sha256": ""
+      }
     }
   ]
 }

@@ -126,6 +126,7 @@ def _save_state(ctx, st, last_poll, interval):
     st["saved"]["event_active"] = st["event_active"]
     st["saved"]["current_event"] = st["current_event"]
     st["saved"]["armed_until"] = st["armed_until"]
+    st["saved"]["suppressed_by"] = st.get("suppressed_by")
     st["saved"]["last_poll_time"] = _iso(last_poll) if last_poll else None
     st["saved"]["next_poll_time"] = \
         _iso(last_poll + interval) if last_poll else None
@@ -158,8 +159,11 @@ def _log_event(ctx, event, action, duration_min=None):
 # ---------------------------------------------------------------------------
 
 async def _fire_export(ctx, st, settings, buffered_end):
-    """Start/extend discharge_now; arms auto-resume (<=240 min) and an
-    SOC floor.  Records the armed deadline so long events re-arm."""
+    """Declare the export intent — the arbiter arms discharge_now (or
+    suppresses it behind a live hold, e.g. EV charging, and fires it
+    when the hold lifts).  Re-declaring refreshes expiry idempotently;
+    the declared intent remains until the buffered event end so a
+    suppression can't silently drop the event."""
     now = time.time()
     remaining_min = int((buffered_end - now) / 60) + 1
     if remaining_min < 1:
@@ -167,31 +171,40 @@ async def _fire_export(ctx, st, settings, buffered_end):
     minutes = min(_MAX_RESUME_MIN, remaining_min)
     until_soc = settings.get("discharge_target_soc", 4)
     try:
-        res = await ctx.quick_action(
-            "discharge_now",
+        res = await ctx.declare_intent(
+            "export",
+            until_epoch=buffered_end,
             auto_resume_minutes=minutes,
-            until_soc=until_soc)
+            until_soc=until_soc,
+            reason="Axle event")
     except Exception as exc:
-        ctx.log("discharge_now failed: {}".format(exc), "error")
+        ctx.log("export intent failed: {}".format(exc), "error")
         return False
-    if not res.get("success"):
-        ctx.log("discharge_now rejected: {}".format(
-            res.get("message", "?")), "error")
+    if not res.get("declared"):
+        ctx.log("export intent rejected: {}".format(
+            res.get("error", "?")), "error")
         return False
+    sup = res.get("suppressed_by")
+    if sup and sup != st.get("suppressed_by"):
+        ctx.log("export suppressed by {} intent".format(sup),
+                "warning")
+    st["suppressed_by"] = sup
     st["armed_until"] = now + minutes * 60
-    ctx.log("export armed for {} min (SOC floor {}%)".format(
-        minutes, until_soc))
+    ctx.log("export declared for {} min (SOC floor {}%){}".format(
+        minutes, until_soc,
+        " — suppressed by " + sup if sup else ""))
     return True
 
 
 async def _resume(ctx, st):
     try:
-        res = await ctx.quick_resume()
-        ok = not res or res.get("success", True)
+        res = await ctx.revoke_intent("export")
+        ok = bool(res.get("revoked", 0) >= 0)
     except Exception as exc:
-        ctx.log("resume failed: {}".format(exc), "error")
+        ctx.log("revoke failed: {}".format(exc), "error")
         ok = False
     st["armed_until"] = 0
+    st["suppressed_by"] = None
     return ok
 
 
@@ -325,7 +338,7 @@ async def _poll(ctx, st, settings):
 async def run(ctx):
     st = {"event_active": False, "current_event": None,
           "armed_until": 0, "last_poll": None, "backoff": 0,
-          "saved": {}}
+          "suppressed_by": None, "saved": {}}
 
     # Restore across restarts: if an event was active when the plugin
     # stopped, the next poll inside the window re-arms export.
@@ -356,11 +369,9 @@ async def run(ctx):
 
 
 async def stop(ctx):
-    """On shutdown mid-event, release the inverter back to normal."""
-    saved = ctx.load_json("axle_state", {}) or {}
-    if saved.get("event_active"):
-        ctx.log("stopping mid-event — resuming inverter", "warning")
-        try:
-            await ctx.quick_resume()
-        except Exception as exc:
-            ctx.log("shutdown resume failed: {}".format(exc), "error")
+    """On shutdown, release our declared intents (the supervisor's
+    revoke_all covers crashes — a clean stop tidies up itself)."""
+    try:
+        await ctx.revoke_intent()
+    except Exception as exc:
+        ctx.log("shutdown revoke failed: {}".format(exc), "error")

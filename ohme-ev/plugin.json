@@ -1,0 +1,28 @@
+{
+  "id": "ohme-ev",
+  "name": "Ohme EV Charger",
+  "version": "1.0.0",
+  "min_terralync": "1.0.0",
+  "author": "TerraLync Team",
+  "description": "Live Ohme EV charger telemetry — discharge hold while the car charges, planned charge windows for the Energy Planner, and EV-load corrections for forecasting.",
+  "license": "MIT",
+  "homepage": "https://github.com/TerraVolt-UK/terralync-plugins",
+  "entry_point": "main.py",
+
+  "permissions": {
+    "read_inverter_data": true,
+    "write_inverter": false,
+    "read_historian": false,
+    "write_scheduler": false,
+    "network_access": true,
+    "filesystem": "own_dir"
+  },
+
+  "lifecycle": {
+    "start_delay_seconds": 8,
+    "restart_on_crash": true,
+    "max_restarts": 3,
+    "restart_cooldown_seconds": 60,
+    "health_check_interval_seconds": 60
+  }
+}
