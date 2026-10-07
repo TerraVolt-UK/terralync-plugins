@@ -322,6 +322,15 @@
             return null;
         }
         
+        // Axle documents import_export as the string "import" | "export";
+        // older records may carry the numeric form. Absent ⇒ export
+        // (only export-direction events ever reach these views anyway).
+        function isExportDir(v) {
+            if (v === null || v === undefined) return true;
+            if (typeof v === 'string') return v.trim().toLowerCase() === 'export';
+            return v > 0;
+        }
+
         // Render functions
         function renderCurrentEvent(event, isActive) {
             const container = document.getElementById('currentEventCard');
@@ -339,9 +348,10 @@
             
             const statusClass = isActive ? 'event-status-active' : 'event-status-upcoming';
             const statusText = isActive ? 'ACTIVE NOW' : 'UPCOMING';
-            const direction = event.import_export > 0 ? 'Export' : 'Import';
-            const directionClass = event.import_export > 0 ? 'power-export' : 'power-import';
-            const directionIcon = event.import_export > 0 ? 'ph-arrow-up' : 'ph-arrow-down';
+            const isExp = isExportDir(event.import_export);
+            const direction = isExp ? 'Export' : 'Import';
+            const directionClass = isExp ? 'power-export' : 'power-import';
+            const directionIcon = isExp ? 'ph-arrow-up' : 'ph-arrow-down';
             
             container.innerHTML = `
                 <div class="grid md:grid-cols-4 gap-4">
@@ -404,10 +414,12 @@
             const sortedEvents = [...events].reverse();
             
             tableBody.innerHTML = sortedEvents.map(event => {
-                const direction = event.import_export > 0 ? 'Export' : 'Import';
-                const directionClass = event.import_export > 0 ? 'power-export' : 'power-import';
+                const isExp = isExportDir(event.import_export);
+                const direction = isExp ? 'Export' : 'Import';
+                const directionClass = isExp ? 'power-export' : 'power-import';
                 const statusClass = event.action === 'started' ? 'event-status-active' : 'event-status-completed';
-                const statusText = event.action === 'started' ? 'Completed' : 'Ended';
+                const statusText = event.action === 'started' ? 'Completed'
+                    : event.action === 'import_skipped' ? 'Skipped (import)' : 'Ended';
                 
                 return `
                     <tr class="table-row border-b border-white/5 last:border-0">
@@ -417,7 +429,7 @@
                         <td class="py-4 text-sm text-gray-300">${calculateDuration(event.event_start, event.event_end)}</td>
                         <td class="py-4 text-sm">
                             <span class="${directionClass} flex items-center gap-1">
-                                <i class="ph-fill ${event.import_export > 0 ? 'ph-arrow-up' : 'ph-arrow-down'}"></i>
+                                <i class="ph-fill ${isExp ? 'ph-arrow-up' : 'ph-arrow-down'}"></i>
                                 ${direction}
                             </span>
                         </td>
