@@ -104,6 +104,19 @@ def _event_times(event):
         _parse_iso(event.get("end_time"))
 
 
+def _event_is_export(event):
+    """Direction gate — Axle documents ``import_export`` as the string
+    ``"import" | "export"``; the field arrives verbatim in the JSON.
+    Missing/malformed values keep the legacy export behaviour so an
+    absent field can never silently skip a real export event."""
+    v = (event or {}).get("import_export")
+    if v is None:
+        return True
+    if isinstance(v, str):
+        return v.strip().lower() == "export"
+    return bool(v)
+
+
 # ---------------------------------------------------------------------------
 #  Persistence — shapes match the full version's axle_state.json /
 #  events.json so the shared frontend renders both identically.
@@ -197,6 +210,8 @@ async def _fetch_event(ctx, settings):
     status = resp.get("status", -1)
     if status == 429:
         return None, True
+    if status == 204:
+        return None, False
     if status != 200:
         ctx.log("Axle API status {} ({})".format(
             status, resp.get("error", "")), "warning")
@@ -207,7 +222,7 @@ async def _fetch_event(ctx, settings):
     return {
         "start_time": data.get("start_time"),
         "end_time": data.get("end_time"),
-        "import_export": data.get("import_export", 0),
+        "import_export": data.get("import_export"),
         "updated_at": data.get("updated_at") or _iso(time.time()),
     }, False
 
@@ -250,15 +265,26 @@ async def _poll(ctx, st, settings):
 
         if buffered_start <= now <= buffered_end:
             if not st["event_active"]:
-                ctx.log("event active {} → {} — exporting".format(
-                    event["start_time"], event["end_time"]))
-                if await _fire_export(ctx, st, settings, buffered_end):
-                    st["event_active"] = True
-                    st["current_event"] = event
-                    dur = int((end - start) / 60) + buffer_min * 2
-                    _log_event(ctx, event, "started", dur)
-                    ctx.set_status("running",
-                                   "exporting until " + _iso(end))
+                if _event_is_export(event):
+                    ctx.log("event active {} → {} — exporting".format(
+                        event["start_time"], event["end_time"]))
+                    if await _fire_export(ctx, st, settings,
+                                          buffered_end):
+                        st["event_active"] = True
+                        st["current_event"] = event
+                        dur = int((end - start) / 60) + buffer_min * 2
+                        _log_event(ctx, event, "started", dur)
+                        ctx.set_status("running",
+                                       "exporting until " + _iso(end))
+                elif st.get("import_logged") != (start, end):
+                    # Import-direction event — record it once, never
+                    # discharge into it.
+                    st["import_logged"] = (start, end)
+                    ctx.log("import event {} → {} — standing "
+                            "down".format(event["start_time"],
+                                          event["end_time"]))
+                    _log_event(ctx, event, "import_skipped",
+                               int((end - start) / 60))
             else:
                 # Event extension: Axle moved the end later
                 _, cur_end = _event_times(st["current_event"])

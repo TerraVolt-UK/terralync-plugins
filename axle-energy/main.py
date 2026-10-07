@@ -35,6 +35,18 @@ EVENTS_FILE = "events.json"
 STATE_FILE = "axle_state.json"
 
 
+def _event_is_export(event: Optional[Dict]) -> bool:
+    """Direction gate — Axle documents ``import_export`` as the string
+    ``"import" | "export"``.  Missing/malformed values keep the legacy
+    export behaviour so an absent field can't silently skip events."""
+    v = (event or {}).get("import_export")
+    if v is None:
+        return True
+    if isinstance(v, str):
+        return v.strip().lower() == "export"
+    return bool(v)
+
+
 class AxlePlugin:
     """Main plugin class for Axle Energy VPP integration using Quick Settings."""
     
@@ -46,6 +58,7 @@ class AxlePlugin:
         self.settings: Dict[str, Any] = {}
         self.current_event: Optional[Dict] = None
         self.event_active = False
+        self._import_logged: Optional[Tuple] = None
         self.last_poll_time: Optional[datetime] = None
         self.next_poll_interval = 900  # Default 15 minutes (900 seconds)
         self.running = False
@@ -156,7 +169,7 @@ class AxlePlugin:
             return {
                 "start_time": data.get("start_time"),
                 "end_time": data.get("end_time"),
-                "import_export": data.get("import_export", 0),
+                "import_export": data.get("import_export"),
                 "updated_at": data.get("updated_at", datetime.utcnow().isoformat() + "Z")
             }
             
@@ -423,22 +436,30 @@ class AxlePlugin:
                 # (starts buffer minutes before event, ends buffer minutes after)
                 if buffered_start <= now <= buffered_end:
                     if not self.event_active:
-                        logger.info(f"Event BUFFER period active - triggering export ({buffer_minutes} min buffer)")
-                        self.event_active = True
-                        self.current_event = event
-                        
-                        # Trigger discharge_now on all inverters
-                        # Auto-resume covers full buffered duration
-                        success = await self._trigger_export_on_all_inverters(event)
-                        
-                        if success:
-                            self._log_event(event, "started")
-                        else:
-                            logger.error("Failed to start export - will retry on next poll")
-                            # Don't mark as active if we couldn't trigger
-                            self.event_active = False
-                        
-                        self._save_state()
+                        if _event_is_export(event):
+                            logger.info(f"Event BUFFER period active - triggering export ({buffer_minutes} min buffer)")
+                            self.event_active = True
+                            self.current_event = event
+
+                            # Trigger discharge_now on all inverters
+                            # Auto-resume covers full buffered duration
+                            success = await self._trigger_export_on_all_inverters(event)
+
+                            if success:
+                                self._log_event(event, "started")
+                            else:
+                                logger.error("Failed to start export - will retry on next poll")
+                                # Don't mark as active if we couldn't trigger
+                                self.event_active = False
+
+                            self._save_state()
+                        elif self._import_logged != (start, end):
+                            # Import-direction event — record it once,
+                            # never discharge into it.
+                            self._import_logged = (start, end)
+                            logger.info("Import-direction event — standing down")
+                            self._log_event(event, "import_skipped")
+                            self._save_state()
                     else:
                         # Event already active - check if end time was extended
                         await self._check_and_handle_event_extension(event)
