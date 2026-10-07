@@ -40,6 +40,19 @@
       }
     },
     {
+      "id": "ohme-ev",
+      "name": "Ohme EV Charger",
+      "version": "1.0.0",
+      "description": "Live Ohme EV charger telemetry — discharge hold while the car charges, planned charge windows for the Energy Planner, and EV-load corrections for forecasting.",
+      "author": "TerraLync Team",
+      "download_url": "",
+      "checksum_sha256": "",
+      "lite": {
+        "download_url": "",
+        "checksum_sha256": ""
+      }
+    },
+    {
       "id": "engineering-mode",
       "name": "Engineering Mode",
       "version": "1.0.0",

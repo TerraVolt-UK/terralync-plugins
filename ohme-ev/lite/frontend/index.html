@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ohme EV Charger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            --bg-void: #0a0a0f;
+            --bg-card: #141419;
+            --accent-primary: #22c55e;
+            --accent-secondary: #3b82f6;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --accent-ev: #8b5cf6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-void);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(20, 20, 25, 0.9) 0%, rgba(15, 15, 20, 0.95) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+        }
+        .status-charging {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.18) 0%, rgba(139, 92, 246, 0.06) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: #a78bfa;
+        }
+        .status-plugged {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+        .status-warn {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+        }
+        .status-idle {
+            background: linear-gradient(135deg, rgba(156, 163, 175, 0.1) 0%, rgba(156, 163, 175, 0.05) 100%);
+            border: 1px solid rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+        .pulse-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .pulse-dot.warn { background: #f59e0b; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .refresh-btn { transition: all 0.2s ease; }
+        .refresh-btn:hover { background: rgba(255, 255, 255, 0.1); }
+        .refresh-btn.spinning i { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .action-btn {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            transition: all 0.2s ease;
+        }
+        .action-btn:hover { filter: brightness(1.1); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .banner-amber {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+        }
+        .banner-violet {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.35);
+        }
+        .table-row { transition: all 0.2s ease; }
+        .table-row:hover { background: rgba(255, 255, 255, 0.03); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+                        <i class="ph-fill ph-car text-2xl text-violet-400"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight">Ohme EV Charger</h1>
+                        <p class="text-sm text-gray-400" id="chargerModel">Live charge telemetry</p>
+                    </div>
+                </div>
+                <button id="refreshBtn" class="refresh-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition-all">
+                    <i class="ph ph-arrows-clockwise"></i><span>Refresh</span>
+                </button>
+            </div>
+            <div class="glass-card p-4 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div id="pluginStatus" class="flex items-center gap-2">
+                        <span class="pulse-dot"></span>
+                        <span class="text-sm font-medium text-green-400" id="statusLabel">Polling</span>
+                    </div>
+                    <div class="h-4 w-px bg-white/10"></div>
+                    <div class="text-sm text-gray-400">Last Poll: <span id="lastPollTime" class="text-white">--</span></div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-sm text-gray-400">Next Poll: <span id="nextPollTime" class="text-white">--</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending approval banner -->
+        <div id="approvalBanner" class="banner-amber rounded-2xl p-4 mb-6 hidden items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-3">
+                <i class="ph-fill ph-warning text-2xl text-amber-400"></i>
+                <div>
+                    <p class="font-medium text-amber-300">Charge pending approval</p>
+                    <p class="text-sm text-gray-400">The charger is waiting for authorisation before it will start.</p>
+                </div>
+            </div>
+            <button id="approveBtn" class="action-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black">
+                <i class="ph-bold ph-check"></i><span>Approve charge</span>
+            </button>
+        </div>
+
+        <!-- Hold banner -->
+        <div id="holdBanner" class="banner-violet rounded-2xl p-4 mb-6 hidden items-center gap-3">
+            <i class="ph-fill ph-pause-circle text-2xl text-violet-300"></i>
+            <div>
+                <p class="font-medium text-violet-300">Battery discharge held</p>
+                <p class="text-sm text-gray-400" id="holdDetail">House battery will not feed the car.</p>
+            </div>
+        </div>
+
+        <!-- Live card -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex items-center gap-2 mb-4">
+                <i class="ph-fill ph-gauge text-lg text-gray-400"></i>
+                <h2 class="text-lg font-medium">Charger</h2>
+            </div>
+            <div class="grid md:grid-cols-4 gap-4">
+                <div id="statusCard" class="status-idle rounded-xl p-4 flex flex-col justify-center">
+                    <span class="text-xs font-semibold tracking-wider opacity-80 mb-1">STATUS</span>
+                    <span class="text-lg font-semibold" id="statusText">--</span>
+                </div>
+                <div class="bg-white/5 rounded-xl p-4">
+                    <div class="text-xs text-gray-400 mb-1">CHARGE POWER</div>
+                    <div class="text-lg font-medium" id="powerKw">--</div>
+                </div>
+                <div class="bg-white/5 rounded-xl p-4">
+                    <div class="text-xs text-gray-400 mb-1">SESSION ENERGY</div>
+                    <div class="text-lg font-medium" id="sessionKwh">--</div>
+                </div>
+                <div class="bg-white/5 rounded-xl p-4">
+                    <div class="text-xs text-gray-400 mb-1">CAR BATTERY</div>
+                    <div class="text-lg font-medium" id="carSoc">--</div>
+                </div>
+            </div>
+            <div id="flagsRow" class="mt-4 pt-4 border-t border-white/10 hidden">
+                <div class="flex flex-wrap gap-3" id="flagsList"></div>
+            </div>
+        </div>
+
+        <!-- Planned windows -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-calendar text-lg text-gray-400"></i>
+                    <h2 class="text-lg font-medium">Planned charge windows</h2>
+                </div>
+                <span id="slotCount" class="text-sm text-gray-400 px-3 py-1 rounded-full bg-white/5">0</span>
+            </div>
+            <div id="slotsList">
+                <div class="text-center py-8 empty-state">
+                    <i class="ph ph-calendar-blank text-3xl mb-2"></i>
+                    <p class="text-gray-500 text-sm">No planned windows reported by the charger</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session history -->
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-clock-counter-clockwise text-lg text-gray-400"></i>
+                    <h2 class="text-lg font-medium">Charge history</h2>
+                </div>
+                <span id="histCount" class="text-sm text-gray-400 px-3 py-1 rounded-full bg-white/5">0 sessions</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left border-b border-white/10">
+                            <th class="pb-3 text-sm font-medium text-gray-400 pl-4">Date</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Start</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">End</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Duration</th>
+                            <th class="pb-3 text-sm font-medium text-gray-400">Energy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="histTable">
+                        <tr><td colspan="5" class="py-12 text-center text-gray-500">
+                            <i class="ph ph-spinner animate-spin text-2xl mb-2 block"></i>Loading…
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-sm text-gray-500">
+            <p>Ohme EV Charger plugin v1.0.0</p>
+            <p class="mt-1">Actual draw over claimed slots — telemetry drives the battery hold</p>
+        </div>
+    </div>
+
+    <script>
+        const STATUS_META = {
+            unplugged:        {label: 'Unplugged',       cls: 'status-idle',     icon: 'ph-plug'},
+            plugged_in:       {label: 'Plugged in',      cls: 'status-plugged',  icon: 'ph-plug-charging'},
+            charging:         {label: 'Charging',        cls: 'status-charging', icon: 'ph-lightning'},
+            paused:           {label: 'Paused',          cls: 'status-warn',     icon: 'ph-pause'},
+            pending_approval: {label: 'Pending approval',cls: 'status-warn',     icon: 'ph-warning'},
+            finished:         {label: 'Finished',        cls: 'status-idle',     icon: 'ph-check'},
+        };
+
+        function fmtKW(w) {
+            if (w === null || w === undefined) return '--';
+            return (w / 1000).toFixed(2) + ' kW';
+        }
+        function fmtRel(iso) {
+            if (!iso) return '--';
+            const d = new Date(iso), diff = (Date.now() - d) / 1000;
+            if (diff < -30) {                       // future (next poll)
+                const f = -diff;
+                if (f < 3600) return 'in ' + Math.ceil(f / 60) + ' min';
+                return d.toLocaleTimeString('en-GB',
+                    {hour: '2-digit', minute: '2-digit'});
+            }
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + ' h ago';
+            return d.toLocaleString('en-GB', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'});
+        }
+        function fmtDT(iso) {
+            if (!iso) return '--';
+            return new Date(iso).toLocaleString('en-GB',
+                {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'});
+        }
+        function fmtT(epoch) {
+            if (!epoch) return '--';
+            return new Date(epoch * 1000).toLocaleTimeString('en-GB',
+                {hour: '2-digit', minute: '2-digit'});
+        }
+        function fmtD(epoch) {
+            if (!epoch) return '--';
+            return new Date(epoch * 1000).toLocaleDateString('en-GB',
+                {day: '2-digit', month: 'short'});
+        }
+        function fmtDur(s, e) {
+            if (!s || !e) return '--';
+            const m = (e - s) / 60;
+            if (m < 60) return Math.round(m) + ' min';
+            return Math.floor(m / 60) + 'h ' + Math.round(m % 60) + 'm';
+        }
+
+        async function fetchJson(path, fallback) {
+            try {
+                const r = await fetch(path);
+                if (r.ok) return await r.json();
+            } catch (e) {}
+            return fallback;
+        }
+
+        function renderState(st) {
+            const meta = STATUS_META[st.status] || STATUS_META.plugged_in;
+            const card = document.getElementById('statusCard');
+            card.className = meta.cls + ' rounded-xl p-4 flex flex-col justify-center';
+            document.getElementById('statusText').innerHTML =
+                `<i class="ph-fill ${meta.icon} mr-1"></i>${meta.label}`;
+            document.getElementById('powerKw').textContent = fmtKW(st.watts);
+            document.getElementById('sessionKwh').textContent =
+                st.session_wh !== null && st.session_wh !== undefined
+                    ? (st.session_wh / 1000).toFixed(2) + ' kWh' : '--';
+            document.getElementById('carSoc').textContent =
+                st.car_soc_pct !== null && st.car_soc_pct !== undefined
+                    ? st.car_soc_pct + '%' : 'n/a';
+            if (st.model) document.getElementById('chargerModel').textContent =
+                st.model + (st.serial ? ' · ' + st.serial : '');
+            document.getElementById('lastPollTime').textContent = fmtRel(st.last_poll);
+            document.getElementById('nextPollTime').textContent = fmtRel(st.next_poll);
+            if (st.charger_online === false) {
+                document.getElementById('statusLabel').textContent = 'Charger offline';
+            } else if (st.last_error) {
+                document.getElementById('statusLabel').textContent = 'Poll error';
+            } else {
+                document.getElementById('statusLabel').textContent = 'Polling';
+            }
+
+            // Pending approval banner
+            const ap = document.getElementById('approvalBanner');
+            ap.classList.toggle('hidden', st.status !== 'pending_approval');
+            ap.classList.toggle('flex', st.status === 'pending_approval');
+
+            // Hold banner
+            const hb = document.getElementById('holdBanner');
+            const hold = st.hold || {};
+            const holding = hold.reactive || Object.keys(hold.slots || {}).length > 0;
+            hb.classList.toggle('hidden', !holding);
+            hb.classList.toggle('flex', holding);
+            if (holding) {
+                let d = hold.reactive ? 'Reactive hold — charger drawing power.' :
+                        'Planned-window hold active.';
+                if (hold.suppressed_by)
+                    d += ' (another intent currently owns the inverter: ' + hold.suppressed_by + ')';
+                document.getElementById('holdDetail').textContent = d;
+            }
+
+            // Planned-vs-actual flags
+            const flags = st.flags || {};
+            const fl = [];
+            if (flags.slot_claimed_no_draw)
+                fl.push('<span class="status-warn px-3 py-1 rounded-full text-xs font-medium">Planned window open — no draw detected</span>');
+            if (flags.draw_no_slot)
+                fl.push('<span class="status-plugged px-3 py-1 rounded-full text-xs font-medium">Charging outside planned windows</span>');
+            document.getElementById('flagsRow').classList.toggle('hidden', fl.length === 0);
+            document.getElementById('flagsList').innerHTML = fl.join('');
+
+            // Slots
+            const slots = st.planned_slots || [];
+            document.getElementById('slotCount').textContent = slots.length;
+            const sl = document.getElementById('slotsList');
+            if (!slots.length) {
+                sl.innerHTML = `<div class="text-center py-8 empty-state">
+                    <i class="ph ph-calendar-blank text-3xl mb-2"></i>
+                    <p class="text-gray-500 text-sm">No planned windows reported by the charger</p></div>`;
+            } else {
+                sl.innerHTML = slots.map(s => `
+                    <div class="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+                        <div class="flex items-center gap-3">
+                            <i class="ph ph-clock text-violet-300"></i>
+                            <span class="text-sm">${fmtT(s.start)} → ${fmtT(s.end)}</span>
+                        </div>
+                        <div class="text-sm text-gray-400">
+                            ${s.kw ? s.kw.toFixed(1) + ' kW' : ''}
+                            <span class="text-gray-500 ml-2">${fmtRel(s.end_iso)}</span>
+                        </div>
+                    </div>`).join('');
+            }
+        }
+
+        function renderHistory(sessions) {
+            const tb = document.getElementById('histTable');
+            document.getElementById('histCount').textContent =
+                sessions.length + ' session' + (sessions.length !== 1 ? 's' : '');
+            if (!sessions.length) {
+                tb.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-gray-500">
+                    <i class="ph ph-info text-2xl mb-2 block"></i>No charge sessions recorded yet</td></tr>`;
+                return;
+            }
+            tb.innerHTML = [...sessions].reverse().map(s => `
+                <tr class="table-row border-b border-white/5 last:border-0">
+                    <td class="py-4 pl-4 text-sm">${fmtD(s.start)}</td>
+                    <td class="py-4 text-sm text-gray-300">${fmtT(s.start)}</td>
+                    <td class="py-4 text-sm text-gray-300">${fmtT(s.end)}</td>
+                    <td class="py-4 text-sm text-gray-300">${fmtDur(s.start, s.end)}</td>
+                    <td class="py-4 text-sm font-medium text-violet-300">${(s.kwh || 0).toFixed(2)} kWh</td>
+                </tr>`).join('');
+        }
+
+        async function updateDashboard() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('spinning');
+            try {
+                const [st, sessions] = await Promise.all([
+                    fetchJson('/api/plugins/ohme-ev/data/ev_state.json', null),
+                    fetchJson('/api/plugins/ohme-ev/data/ev_sessions.json', []),
+                ]);
+                if (st) renderState(st);
+                renderHistory(sessions || []);
+            } finally {
+                btn.classList.remove('spinning');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refreshBtn').addEventListener('click', updateDashboard);
+            document.getElementById('approveBtn').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                btn.disabled = true;
+                try {
+                    const r = await fetch('/api/plugins/ohme-ev/action', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({action: 'approve', payload: {}})
+                    });
+                    const j = await r.json();
+                    btn.querySelector('span').textContent =
+                        j.success ? 'Approved' : ('Failed: ' + (j.error || r.status));
+                    setTimeout(updateDashboard, 1500);
+                } catch (err) {
+                    btn.querySelector('span').textContent = 'Request failed';
+                } finally {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.querySelector('span').textContent = 'Approve charge';
+                    }, 3000);
+                }
+            });
+            updateDashboard();
+            setInterval(updateDashboard, 30000);
+        });
+    </script>
+</body>
+</html>

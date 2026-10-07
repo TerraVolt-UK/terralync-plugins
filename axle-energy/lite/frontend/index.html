@@ -332,7 +332,7 @@
         }
 
         // Render functions
-        function renderCurrentEvent(event, isActive) {
+        function renderCurrentEvent(event, isActive, suppressedBy) {
             const container = document.getElementById('currentEventCard');
             
             if (!event) {
@@ -346,8 +346,11 @@
                 return;
             }
             
-            const statusClass = isActive ? 'event-status-active' : 'event-status-upcoming';
-            const statusText = isActive ? 'ACTIVE NOW' : 'UPCOMING';
+            const suppressed = isActive && suppressedBy;
+            const statusClass = suppressed ? 'event-status-upcoming'
+                : isActive ? 'event-status-active' : 'event-status-upcoming';
+            const statusText = suppressed
+                ? `SUPPRESSED — ${suppressedBy}` : isActive ? 'ACTIVE NOW' : 'UPCOMING';
             const isExp = isExportDir(event.import_export);
             const direction = isExp ? 'Export' : 'Import';
             const directionClass = isExp ? 'power-export' : 'power-import';
@@ -462,7 +465,8 @@
                     document.getElementById('nextPollTime').textContent =
                         state.next_poll_time ? formatRelativeTime(state.next_poll_time) : '--';
 
-                    renderCurrentEvent(state.current_event, state.event_active);
+                    renderCurrentEvent(state.current_event, state.event_active,
+                                       state.suppressed_by);
                 }
                 
                 renderHistory(history);
