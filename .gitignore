@@ -46,3 +46,6 @@ logs/
 plugin_state.json
 permissions_granted.json
 settings.json
+
+# Not for production release — kept local only until ready
+engineering-mode/
