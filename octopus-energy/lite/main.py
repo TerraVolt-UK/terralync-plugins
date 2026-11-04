@@ -10,7 +10,7 @@ from helpers import DAYS, _TICK_S, _DISCOVERY_RETRY_S, _AGILE_PREFIX, _INTELLI_P
 from api import _oe_rest, _oe_gql, _fetch_rates, _discover
 from sched import _slots_from_rates, _agile_update, _merged_blocks, _mark_day, _clean_other_days, _publish_rates_display, _intelli_fixed, _intelli_dispatch, _has_dispatch_blocks
 from sessions import _region_match, _saving_sessions, _persist_ss, _log_ss
-from provider import _provider
+from provider import _provider, _tariff_info, _tariff_events
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +34,10 @@ async def run(ctx):
 
     ctx.register_provider("tariff.rates",
                           lambda: _provider(ctx, st, ctx.get_settings()))
+    ctx.register_provider("tariff.info",
+                          lambda: _tariff_info(st, ctx.get_settings()))
+    ctx.register_provider("tariff.events",
+                          lambda: _tariff_events(ctx))
     ctx.log("Octopus Energy started", "info")
     ctx.set_status("running", "initialising")
 

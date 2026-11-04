@@ -18,6 +18,43 @@ def _region_match(ev, region):
     return not tr or (_SS_REGION_PREFIX + region) in tr
 
 
+def _reward_ppkwh(rate):
+    """Octoplus incentiveRate → p/kWh for the tariff.events contract.
+
+    The GQL field has surfaced both as pence (600) and as £/kWh (6.0)
+    across API versions — values under 50 are almost certainly pounds
+    since no session has paid under 50p/kWh or over £50/kWh."""
+    try:
+        r = float(rate or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if r <= 0:
+        return 0.0
+    return r * 100.0 if r < 50.0 else r
+
+
+def _persist_events(ctx, info, region):
+    """Cache joined sessions as tariff.events records for the planner.
+
+    The provider serves this cache; the planner lifts its export floor
+    to reward_ppkwh inside each window so a joined session's pre-charge
+    + discharge is optimised in advance rather than improvised by the
+    quick-action path below."""
+    events = []
+    for ev in info.get("joinedEvents") or []:
+        if not _region_match(ev, region):
+            continue
+        s = _parse_iso(ev.get("startAt", ""))
+        e = _parse_iso(ev.get("endAt", ""))
+        w = _reward_ppkwh(ev.get("incentiveRate"))
+        if s and e and e > s and w > 0:
+            events.append({"start": s, "end": e, "reward_ppkwh": w})
+    try:
+        ctx.save_json("ss_events", {"events": events})
+    except Exception:
+        pass
+
+
 async def _saving_sessions(ctx, st, settings):
     """Poll joined sessions; export while one is active."""
     data = await _oe_gql(ctx, settings, _GQL_SESSIONS,
@@ -25,6 +62,7 @@ async def _saving_sessions(ctx, st, settings):
     info = data.get("octoplusAccountInfo") or {}
     now = time.time()
     region = st.get("region_code") or "C"
+    _persist_events(ctx, info, region)
 
     avail = [e for e in info.get("availableEvents") or []
              if _region_match(e, region)

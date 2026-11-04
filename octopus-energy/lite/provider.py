@@ -3,6 +3,31 @@
 import time
 
 from helpers import _mode, _parse_iso, _local_midnight
+from helpers import _product_from_tariff
+
+
+def _tariff_info(st, settings):
+    """tariff.info contract → discovered product/region/mode (P04).
+
+    The planner's direct-REST Agile path prefers this over its manual
+    PLANNER_AGILE_PRODUCT/_REGION config so users on discovered tariffs
+    (IOG/Go/Agile) fetch their real product."""
+    tc = st.get("tariff_code") or ""
+    return {"product": _product_from_tariff(tc),
+            "region": st.get("region_code") or "C",
+            "mode": _mode(st, settings),
+            "tariff_code": tc}
+
+
+def _tariff_events(ctx):
+    """tariff.events contract → joined Saving Sessions (P20b).
+
+    sessions.py persists normalised event records on each poll; this
+    just serves the cache.  Records are {start, end, reward_ppkwh}
+    epochs + p/kWh — the planner lifts its export floor to the reward
+    inside each window."""
+    data = ctx.load_json("ss_events", {}) or {}
+    return {"events": data.get("events") or []}
 
 
 def _provider(ctx, st, settings):

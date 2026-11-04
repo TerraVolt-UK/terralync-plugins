@@ -88,13 +88,16 @@ def _iso(ts):
 
 
 def _uk_dst(epoch):
-    """UK DST offset (3600 during BST: last Sun of Mar → Oct)."""
+    """UK DST offset (3600 during BST: last Sun of Mar → Oct).
+
+    Clocks change at 01:00 UTC on the last Sunday (CODEBASE_REVIEW F43).
+    """
     t = time.gmtime(epoch)
     year = t[0]
 
     def _last_sunday(y, m):
         for d in range(31, 20, -1):
-            e = _days_from_civil(y, m, d) * 86400 + 43200 - _EPOCH_OFFSET
+            e = _days_from_civil(y, m, d) * 86400 + 3600 - _EPOCH_OFFSET
             if time.gmtime(e)[6] == 6:
                 return e
         return 0
@@ -116,11 +119,15 @@ def _local_day(epoch):
 
 
 def _local_midnight(epoch):
-    """UTC epoch of local midnight containing epoch (for day windows)."""
+    """UTC epoch of local midnight containing epoch (for day windows).
+
+    Offset is evaluated at the day-start candidate — on transition
+    Sundays it differs from the offset at ``epoch`` (F43 edge)."""
     dst = _uk_dst(epoch)
     t = time.gmtime(int(epoch) + dst)
-    return (_days_from_civil(t[0], t[1], t[2]) * 86400
-            - _EPOCH_OFFSET - dst)
+    day_utc = (_days_from_civil(t[0], t[1], t[2]) * 86400
+               - _EPOCH_OFFSET)
+    return day_utc - _uk_dst(day_utc)
 
 
 def _b64(s):
