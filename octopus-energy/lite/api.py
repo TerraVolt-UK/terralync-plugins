@@ -121,13 +121,28 @@ async def _discover(ctx, st, settings):
                 chosen = mp
                 break
     chosen = chosen or points[0]
+    now = time.time()
+
+    # Export meter point — its live agreement IS the authoritative
+    # Outgoing product/region (Go-import + Agile-Outgoing users get
+    # this discovered instead of typing a product code).
+    for mp in points:
+        if not mp.get("is_export"):
+            continue
+        for ag in mp.get("agreements") or []:
+            vf = _parse_iso(ag.get("valid_from", ""))
+            vt = _parse_iso(ag.get("valid_to", "")) \
+                if ag.get("valid_to") else None
+            if vf and vf <= now and (vt is None or vt > now):
+                st["export_tariff_code"] = ag.get("tariff_code", "")
+                break
+        break
 
     mpan = chosen.get("mpan", "")
     st["mpan"] = mpan
     st["region_code"] = settings.get("region_code") or \
         _REGION_FROM_MPAN.get(mpan[:2], "C")
 
-    now = time.time()
     agreements = chosen.get("agreements") or []
     for ag in agreements:
         vf = _parse_iso(ag.get("valid_from", ""))

@@ -33,6 +33,43 @@ def _slots_from_rates(rates, n_slots, max_price):
     return [(_local_hm(s), _local_hm(e)) for s, e in merged]
 
 
+async def _export_update(ctx, st, settings):
+    """Fetch Agile-Outgoing export rates → agile_export_cache.
+
+    Runs for any import mode (Go/fixed import + Outgoing export is a
+    common combination).  The account's discovered export tariff code
+    wins over the manual product setting; Outgoing tariffs publish
+    their export prices on standard-unit-rates — export-payment-rates
+    404s on these products."""
+    exp_tc = st.get("export_tariff_code") or ""
+    prod = _product_from_tariff(exp_tc) or \
+        settings.get("export_tariff_product", "AGILE-OUTGOING-19-05-13")
+    region = st.get("region_code") or "C"
+    if exp_tc:
+        parts = exp_tc.split("-")
+        if parts and len(parts[-1]) == 1:
+            region = parts[-1]
+    tariff = "E-1R-{}-{}".format(prod, region)
+    now = time.time()
+    rates = await _fetch_rates(
+        ctx, settings, prod, tariff,
+        _iso(now - 86400), _iso(now + 86400))
+    if not rates:
+        ctx.log("export rates not ready", "info")
+        return False
+    cache = ctx.load_json("agile_export_cache", {}) or {}
+    seen = {}
+    for r in (cache.get("rates") or []) + rates:
+        k = r.get("valid_from")
+        if k:
+            seen[k] = r
+    merged = sorted(seen.values(), key=lambda r: r["valid_from"])
+    ctx.save_json("agile_export_cache", {
+        "date": _iso(now)[:10], "rates": merged,
+        "last_updated": _iso(now)})
+    return True
+
+
 async def _agile_update(ctx, st, settings):
     """Fetch tomorrow's rates, write tomorrow's charge slots.
     Returns True once rates for tomorrow are in hand."""
@@ -65,20 +102,9 @@ async def _agile_update(ctx, st, settings):
         "last_updated": _iso(now)})
 
     # Optional export (Agile Outgoing) rates
-    export_rates = []
-    if settings.get("enable_export_tariff"):
-        prod = settings.get("export_tariff_product",
-                            "AGILE-OUTGOING-19-05-13")
-        try:
-            export_rates = await _fetch_rates(
-                ctx, settings, prod,
-                "E-1R-{}-{}".format(prod, region),
-                _iso(tom0), _iso(tom1), kind="export-payment-rates")
-            ctx.save_json("agile_export_cache", {
-                "date": _iso(tom0)[:10], "rates": export_rates,
-                "last_updated": _iso(now)})
-        except Exception as exc:
-            ctx.log("export rates unavailable: {}".format(exc), "info")
+    if settings.get("enable_export_tariff") or \
+            st.get("export_tariff_code"):
+        await _export_update(ctx, st, settings)
 
     # Cheapest slots → tomorrow's schedule
     n = int(settings.get("agile_cheap_slots", 8))

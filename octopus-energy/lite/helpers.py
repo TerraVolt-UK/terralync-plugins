@@ -223,6 +223,7 @@ def _save_state(ctx, st):
         ctx.save_json("octopus_state", {
             "mpan": st.get("mpan"), "region_code": st.get("region_code"),
             "tariff_code": st.get("tariff_code"),
+            "export_tariff_code": st.get("export_tariff_code"),
             "detected_mode": st.get("detected_mode"),
             "ss_active": bool(st.get("ss_active") or
                               old.get("ss_active")),

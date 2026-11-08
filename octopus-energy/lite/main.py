@@ -8,7 +8,7 @@ import time
 
 from helpers import DAYS, _TICK_S, _DISCOVERY_RETRY_S, _AGILE_PREFIX, _INTELLI_PREFIX, _DISPATCH_PREFIX, _parse_iso, _iso, _uk_dst, _local_hm, _local_day, _local_midnight, _days_from_civil, _product_from_tariff, _classify, _mode, _save_state, _synth_two_tier
 from api import _oe_rest, _oe_gql, _fetch_rates, _discover
-from sched import _slots_from_rates, _agile_update, _merged_blocks, _mark_day, _clean_other_days, _publish_rates_display, _intelli_fixed, _intelli_dispatch, _has_dispatch_blocks
+from sched import _slots_from_rates, _agile_update, _export_update, _merged_blocks, _mark_day, _clean_other_days, _publish_rates_display, _intelli_fixed, _intelli_dispatch, _has_dispatch_blocks
 from sessions import _region_match, _saving_sessions, _persist_ss, _log_ss
 from provider import _provider, _tariff_info, _tariff_events
 
@@ -28,7 +28,8 @@ async def run(ctx):
 
     # Restore across restarts
     saved = ctx.load_json("octopus_state", {}) or {}
-    for k in ("mpan", "region_code", "tariff_code", "detected_mode"):
+    for k in ("mpan", "region_code", "tariff_code", "export_tariff_code",
+              "detected_mode"):
         st[k] = saved.get(k)
     st["discovered"] = bool(st.get("mpan"))
 
@@ -158,6 +159,31 @@ async def run(ctx):
                     except Exception as exc:
                         ctx.log("standard rates fetch: {}".format(exc),
                                 "info")
+
+            # --- export tariff fetch (any import mode) ---
+            # Go/fixed import + Agile-Outgoing export is common; the
+            # agile path above covers agile imports, this one catches
+            # every other mode.  Same ~16:15 publish window, hourly
+            # retry.  A discovered export agreement counts as enabled.
+            if mode != "agile" and \
+                    (settings.get("enable_export_tariff") or
+                     st.get("export_tariff_code")) and \
+                    st.get("exp_day") != day_tag_today and \
+                    now >= st.get("exp_next_try", 0):
+                lt = time.gmtime(now)
+                empty_cache = not (ctx.load_json(
+                    "agile_export_cache", {}) or {}).get("rates")
+                if (lt[3], lt[4]) >= (16, 15) or empty_cache:
+                    try:
+                        if await _export_update(ctx, st, settings):
+                            st["exp_day"] = day_tag_today
+                            st["rates_fetched"] = now
+                        else:
+                            st["exp_next_try"] = now + 1800
+                    except Exception as exc:
+                        ctx.log("export rates fetch: {}".format(exc),
+                                "info")
+                        st["exp_next_try"] = now + 1800
 
             # --- intelligent dispatch poll ---
             if mode == "intelligent_go" and now >= st["disp_next"]:

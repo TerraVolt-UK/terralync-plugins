@@ -44,14 +44,6 @@ def _provider(ctx, st, settings):
                 out["import"].append({
                     "start": s, "end": e,
                     "pence": r.get("value_inc_vat", 0)})
-        xcache = ctx.load_json("agile_export_cache", {}) or {}
-        for r in xcache.get("rates") or []:
-            s = _parse_iso(r.get("valid_from", ""))
-            e = _parse_iso(r.get("valid_to", ""))
-            if s and e:
-                out["export"].append({
-                    "start": s, "end": e,
-                    "pence": r.get("value_inc_vat", 0)})
         out["fetched"] = _parse_iso(
             (cache.get("last_updated") or "")) or 0
     else:
@@ -97,4 +89,15 @@ def _provider(ctx, st, settings):
                     out["import"].append(
                         {"start": s, "end": e, "pence": cheap_pence})
         out["fetched"] = _parse_iso(disp.get("timestamp") or "") or 0
+
+    # Export slots are mode-independent — a Go/fixed import paired with
+    # Agile Outgoing still needs real export prices in the plan.
+    xcache = ctx.load_json("agile_export_cache", {}) or {}
+    for r in xcache.get("rates") or []:
+        s = _parse_iso(r.get("valid_from", ""))
+        e = _parse_iso(r.get("valid_to", ""))
+        if s and e:
+            out["export"].append({
+                "start": s, "end": e,
+                "pence": r.get("value_inc_vat", 0)})
     return out
