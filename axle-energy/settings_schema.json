@@ -70,6 +70,23 @@
       "step": 1,
       "default": 4,
       "help": "Stop discharging when battery reaches this level"
+    },
+    {
+      "key": "planner_events_enabled",
+      "label": "Share events with Energy Planner",
+      "type": "checkbox",
+      "default": true,
+      "help": "Publish upcoming export events to the planner so it can hold charge ahead of them"
+    },
+    {
+      "key": "planner_event_reward_ppkwh",
+      "label": "Planner event value (p/kWh)",
+      "type": "number",
+      "min": 0,
+      "max": 1000,
+      "step": 1,
+      "default": 150,
+      "help": "Surrogate export value the planner uses inside an Axle event window"
     }
   ]
 }

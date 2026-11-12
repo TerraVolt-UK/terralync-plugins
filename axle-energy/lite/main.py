@@ -255,6 +255,22 @@ async def _poll(ctx, st, settings):
 
     event, limited = await _fetch_event(ctx, settings)
     st["last_poll"] = now
+    # Keep the planner-facing event cache in step with the API: a live
+    # event persists for the tariff.events provider, a cleared/empty
+    # response erases it so a cancelled event can't linger.
+    if not limited:
+        if event and _event_times(event)[1]:
+            st["next_event"] = event
+            try:
+                ctx.save_json("axle_next_event", event)
+            except Exception:
+                pass
+        else:
+            st["next_event"] = None
+            try:
+                ctx.save_json("axle_next_event", {})
+            except Exception:
+                pass
     # 429 → cumulative exponential backoff (cap 1h), reset on success
     if limited:
         st["backoff"] = min(st.get("backoff", 0) * 2 or 2, 4)
@@ -332,6 +348,35 @@ async def _poll(ctx, st, settings):
 
 
 # ---------------------------------------------------------------------------
+#  Planner contract — tariff.events
+# ---------------------------------------------------------------------------
+
+def _tariff_events(ctx, st, settings):
+    """tariff.events provider → the known upcoming Axle export event.
+
+    The event cache carries {start_time, end_time, import_export} —
+    the planner lifts sell[] to reward_ppkwh inside the window so it
+    plans exports into the event AND holds SOC ahead of it instead of
+    spending stored energy on mid-price house load.  Axle events carry
+    no price; a configurable surrogate stands in — it only needs to
+    dominate every real alternative to work."""
+    if not settings.get("planner_events_enabled", True):
+        return {"events": []}
+    ev = st.get("next_event")
+    if ev is None:
+        ev = ctx.load_json("axle_next_event", {}) or None
+    s, e = _event_times(ev)
+    if not ev or s is None or e is None or e <= time.time():
+        return {"events": []}
+    if not _event_is_export(ev):
+        return {"events": []}   # import-direction event — no reward
+    return {"events": [{
+        "start": s, "end": e,
+        "reward_ppkwh": float(settings.get(
+            "planner_event_reward_ppkwh", 150))}]}
+
+
+# ---------------------------------------------------------------------------
 #  Lifecycle
 # ---------------------------------------------------------------------------
 
@@ -348,6 +393,9 @@ async def run(ctx):
     st["current_event"] = saved.get("current_event")
     st["armed_until"] = saved.get("armed_until") or 0
 
+    ctx.register_provider("tariff.events",
+                          lambda: _tariff_events(
+                              ctx, st, ctx.get_settings() or {}))
     ctx.log("Axle Energy VPP started", "info")
     ctx.set_status("running", "polling")
 

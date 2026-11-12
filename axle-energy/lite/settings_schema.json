@@ -54,6 +54,20 @@
       "minimum": 4,
       "maximum": 100,
       "default": 4
+    },
+    "planner_events_enabled": {
+      "type": "boolean",
+      "title": "Share events with Energy Planner",
+      "description": "Publish upcoming export events to the planner so it can hold charge ahead of them",
+      "default": true
+    },
+    "planner_event_reward_ppkwh": {
+      "type": "number",
+      "title": "Planner event value (p/kWh)",
+      "description": "Surrogate export value the planner uses inside an Axle event window (Axle events carry no price — this only needs to beat the day rate)",
+      "minimum": 0,
+      "maximum": 1000,
+      "default": 150
     }
   }
 }
