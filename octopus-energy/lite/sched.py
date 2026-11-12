@@ -133,6 +133,8 @@ async def _agile_update(ctx, st, settings):
     ctx.log("wrote {} agile charge slot(s) for {}".format(
         len(slots), day))
 
+    export_rates = (ctx.load_json("agile_export_cache", {}) or {}
+                       ).get("rates") or []
     _publish_rates_display(ctx, st, settings, merged, export_rates,
                            slots)
     return True
