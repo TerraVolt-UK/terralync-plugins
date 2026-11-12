@@ -8,7 +8,6 @@
   "license": "MIT",
   "homepage": "https://github.com/TerraVolt-UK/terralync-plugins",
   "entry_point": "main.py",
-
   "permissions": {
     "read_inverter_data": false,
     "write_inverter": false,
@@ -18,13 +17,15 @@
     "quick_actions": true,
     "filesystem": "own_dir"
   },
-
   "esp32": {
     "min_heap_kb": 45,
-    "boards": ["geek-16mb", "guition-16mb", "s3-16mb", "s3-8mb"],
+    "boards": [
+      "geek-16mb",
+      "guition-16mb",
+      "s3-16mb"
+    ],
     "api_level": 1
   },
-
   "lifecycle": {
     "start_delay_seconds": 10,
     "restart_on_crash": true,

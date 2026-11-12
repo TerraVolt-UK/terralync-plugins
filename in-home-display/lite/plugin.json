@@ -8,7 +8,6 @@
   "license": "MIT",
   "homepage": "https://github.com/terralync/in-home-display",
   "entry_point": "main.py",
-
   "permissions": {
     "read_inverter_data": true,
     "read_historian": false,
@@ -17,13 +16,15 @@
     "network_access": false,
     "filesystem": "own_dir"
   },
-
   "esp32": {
     "min_heap_kb": 15,
-    "boards": ["geek-16mb", "guition-16mb", "s3-16mb", "s3-8mb"],
+    "boards": [
+      "geek-16mb",
+      "guition-16mb",
+      "s3-16mb"
+    ],
     "api_level": 1
   },
-
   "lifecycle": {
     "start_delay_seconds": 2,
     "restart_on_crash": true,
