@@ -16,14 +16,14 @@
     {
       "id": "axle-energy",
       "name": "Axle Energy VPP",
-      "version": "1.3.3",
+      "version": "1.3.4",
       "description": "Virtual Power Plant integration for Axle Energy - automatic battery export during grid events",
       "author": "TerraLync Team",
-      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.3/axle-energy-1.3.3.tar.gz",
-      "checksum_sha256": "dc06f2c5bcf4cef9ca2a2db278a32930c1c0a9c9a1f0fbe0397189ec3c05470b",
+      "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.4/axle-energy-1.3.4.tar.gz",
+      "checksum_sha256": "81c7bd46cf8cc451e5d3f9f7ddef0b3af69fba34dab20e9924cc1a6701ae3c8d",
       "lite": {
-        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.3/axle-energy-lite-1.3.3.tar.gz",
-        "checksum_sha256": "6f831f11b9851279be5beab6b76b3123af42a7803cd9e3a88ad8fb8edee1ab77"
+        "download_url": "https://github.com/TerraVolt-UK/terralync-plugins/releases/download/axle-energy/v1.3.4/axle-energy-lite-1.3.4.tar.gz",
+        "checksum_sha256": "cbb567075016f9cf0c106ff36981767ffb2d983debe7ed6c84a240ff8d0a4047"
       }
     },
     {
