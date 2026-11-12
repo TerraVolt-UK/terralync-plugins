@@ -1,14 +1,13 @@
 {
   "id": "octopus-energy",
   "name": "Octopus Energy Tariff Optimiser",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "min_terralync": "1.0.0",
   "author": "TerraLync Team",
   "description": "Links your Octopus Energy account to TerraLync for tariff-aware battery scheduling. Supports Intelligent Go, Agile, and Saving Session participation.",
   "license": "MIT",
   "homepage": "https://github.com/TerraVolt-UK/terralync-plugins",
   "entry_point": "main.py",
-
   "permissions": {
     "read_inverter_data": true,
     "read_historian": false,
@@ -17,7 +16,6 @@
     "network_access": true,
     "filesystem": "own_dir"
   },
-
   "lifecycle": {
     "start_delay_seconds": 10,
     "restart_on_crash": true,
